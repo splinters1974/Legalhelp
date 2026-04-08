@@ -489,6 +489,24 @@
             cursor: not-allowed;
         }
 
+        .btn-demo {
+            margin-left: 1rem;
+            padding: 1rem 1.75rem;
+            font-size: 1rem;
+            background: transparent;
+            color: var(--slate-light);
+            border: 2px dashed var(--gray-200);
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-demo:hover {
+            border-color: var(--amber-accent);
+            color: var(--amber-accent);
+        }
+
         /* Loading State */
         .loading-overlay {
             display: none;
@@ -1149,6 +1167,9 @@
             <button class="btn-analyze" id="analyzeBtn" onclick="analyzeContract()" disabled>
                 Analyse Contract
             </button>
+            <button class="btn-demo" id="demoBtn" onclick="runDemo()" title="Load sample results — no API key or file required">
+                Try Demo
+            </button>
             <div id="analysisError" class="error-banner hidden" role="alert"
                  style="max-width:600px; margin:1rem auto 0;"></div>
         </section>
@@ -1463,6 +1484,140 @@
             };
         }
 
+        // ─── Demo Mode ────────────────────────────────────────────────────────────
+        const DEMO_RESULT = {
+            tier: 'medium',
+            fileName: 'Demo — Energy Services Agreement (sample)',
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+            overallRisk: 'High',
+            overallJustification: 'Several clauses impose significant uncapped liability and one-sided termination rights on Ameresco, while payment protection and force majeure provisions are weaker than market standard.',
+            executiveSummary: 'This Energy Services Agreement contains a number of provisions that are materially unfavourable to Ameresco. The liability cap is set at contract value but excludes consequential loss carve-outs in a way that effectively removes Ameresco\'s protection for the most likely loss scenarios.\n\nThe termination-for-convenience clause allows the Client to exit with only 14 days\' notice and limits recovery to costs incurred — there is no provision for loss of profit or demobilisation costs. This is a significant commercial exposure on a long-term energy project.\n\nPayment terms are 60 days net with no late-payment interest mechanism, which is below market standard and creates cash-flow risk. On balance, this contract requires material renegotiation before signing.',
+            topRisks: [
+                {
+                    title: 'Uncapped Consequential Loss Exposure',
+                    level: 'High',
+                    description: 'Clause 14.3 purports to cap liability at contract value but the consequential loss exclusion in Clause 14.4 is drafted so narrowly (restricted to "loss of anticipated savings") that loss of revenue and increased operating costs fall outside it.',
+                    amerescoImplication: 'Ameresco could face claims well in excess of the contract value in the event of a performance dispute. Recommend widening the consequential loss exclusion to include all indirect and consequential loss, revenue loss, and loss of contract.'
+                },
+                {
+                    title: 'Termination for Convenience on 14 Days\' Notice',
+                    level: 'High',
+                    description: 'Clause 22.1 allows the Client to terminate for convenience on 14 days\' written notice. Compensation on termination is limited to "costs reasonably incurred to the date of termination" with no loss of profit or subcontractor break costs.',
+                    amerescoImplication: 'On a 10-year energy project with significant upfront mobilisation costs, early termination could leave Ameresco significantly out of pocket. Negotiate for a minimum notice period of 90 days and a recovery formula covering loss of profit and committed subcontractor costs.'
+                },
+                {
+                    title: 'Payment Terms — 60 Days Net with No Interest',
+                    level: 'Medium',
+                    description: 'Clause 8.2 sets payment at 60 days from invoice with no provision for statutory late-payment interest (Late Payment of Commercial Debts Act 1998). This is inconsistent with market practice for energy services contracts.',
+                    amerescoImplication: 'Extended payment terms combined with no interest remedy creates material cash-flow risk, particularly for monthly energy charges. Negotiate to 30 days net with statutory interest applying automatically from day 31.'
+                },
+                {
+                    title: 'Performance Guarantee — No Measurement Protocol',
+                    level: 'Medium',
+                    description: 'Clause 11 includes a guaranteed savings target but does not specify the measurement and verification (M&V) protocol. Without an agreed M&V standard (e.g. IPMVP Option A or B), disputes about savings calculation are likely.',
+                    amerescoImplication: 'Ameresco should insist on incorporating a defined M&V protocol as a schedule, with agreed baselines, exclusions for changes in occupancy/operations, and a dispute resolution mechanism for savings disputes.'
+                },
+                {
+                    title: 'Intellectual Property — Broad Assignment',
+                    level: 'Low',
+                    description: 'Clause 18.2 assigns all IP created during the contract to the Client, including design methodologies, software configurations, and operational data. No licence-back to Ameresco is provided.',
+                    amerescoImplication: 'Ameresco\'s proprietary monitoring platform and optimisation algorithms could be captured by this clause. Replace with a licence to the Client for project-specific deliverables, retaining ownership of underlying tools and methodologies.'
+                }
+            ],
+            clauseBreakdown: [
+                {
+                    clauseRef: 'Clause 8 — Payment',
+                    keyText: 'Payment shall be made within 60 days of receipt of a valid invoice.',
+                    meaning: 'The Client has 60 days to pay each invoice. No interest is specified for late payment.',
+                    risk: 'Below market standard (30 days is typical). No interest remedy incentivises slow payment. Statutory interest is not expressly preserved.'
+                },
+                {
+                    clauseRef: 'Clause 14 — Liability',
+                    keyText: 'Each party\'s total liability shall not exceed the total contract value paid or payable in the 12 months preceding the claim.',
+                    meaning: 'Mutual liability cap at 12-month contract value. Consequential loss excluded but narrowly defined.',
+                    risk: 'The narrow consequential loss carve-out (see Clause 14.4) undermines the cap for the most likely loss scenarios (revenue loss, increased costs). Effective cap may be much higher than intended.'
+                },
+                {
+                    clauseRef: 'Clause 22 — Termination',
+                    keyText: 'The Client may terminate this Agreement for convenience on 14 days\' written notice to Ameresco.',
+                    meaning: 'Client has unilateral right to exit on 2 weeks\' notice at any time, paying only costs incurred to that date.',
+                    risk: 'No loss of profit recovery, no demobilisation costs, no committed subcontractor cost recovery. Highly unfavourable for Ameresco on a long-term project with upfront investment.'
+                }
+            ],
+            missingClauses: [
+                {
+                    clause: 'Change in Law',
+                    importance: 'High',
+                    consequence: 'No mechanism to adjust contract price or obligations if energy regulations, carbon pricing, or grid connection rules change during the contract term. Ameresco bears the risk of regulatory change in full.'
+                },
+                {
+                    clause: 'Step-In Rights',
+                    importance: 'Medium',
+                    consequence: 'No right for Ameresco to step in if a Client-controlled interface (e.g. building management system access) is withdrawn or degraded, which could prevent Ameresco from meeting its performance obligations.'
+                },
+                {
+                    clause: 'Benchmarking / Market Testing Limitation',
+                    importance: 'Medium',
+                    consequence: 'No restriction on the Client benchmarking or market-testing the services during the term. Without a restriction, the Client could use benchmark results to pressure renegotiation or justify early termination.'
+                }
+            ],
+            recommendedActions: [
+                'Redraft Clause 14.4 to extend the consequential loss exclusion to all indirect and consequential loss, revenue loss, loss of profit, and loss of contract — not just "loss of anticipated savings".',
+                'Negotiate Clause 22.1 to require a minimum 90-day termination notice and include a termination payment formula covering loss of profit for the unexpired term (or a defined break schedule) plus committed subcontractor costs.',
+                'Amend Clause 8.2 to reduce payment terms to 30 days net and explicitly preserve Ameresco\'s right to statutory late-payment interest under the Late Payment of Commercial Debts (Interest) Act 1998.',
+                'Add a Schedule specifying the agreed M&V Protocol (recommend IPMVP Option B) including baseline assumptions, adjustment methodology, and a stepped dispute resolution process for savings disputes.',
+                'Replace Clause 18.2 with a project-specific IP licence to the Client, with Ameresco retaining ownership of all background IP, tools, platforms, and methodologies.'
+            ],
+            negotiationPoints: [
+                {
+                    point: 'Liability cap structure',
+                    priority: 'Must Have',
+                    suggestedPosition: 'Retain the 12-month contract value cap but replace Clause 14.4 with a standard mutual exclusion of all indirect and consequential loss, including loss of revenue, loss of profit, and loss of contract.'
+                },
+                {
+                    point: 'Termination compensation',
+                    priority: 'Must Have',
+                    suggestedPosition: 'Minimum 90-day notice. Termination payment = costs incurred + loss of profit for the unexpired term at agreed margin + committed subcontractor break costs, capped at 24 months\' contract value.'
+                },
+                {
+                    point: 'Payment terms',
+                    priority: 'Should Have',
+                    suggestedPosition: '30 days net from valid invoice. Statutory interest at 8% over base rate automatically applies from day 31 without further notice.'
+                },
+                {
+                    point: 'M&V Protocol',
+                    priority: 'Should Have',
+                    suggestedPosition: 'Attach IPMVP Option B as Schedule 5. Baselines fixed at contract execution. Adjustments permitted for changes in occupancy >10% or material operational changes outside Ameresco\'s control.'
+                }
+            ]
+        };
+
+        function runDemo() {
+            // Clear any prior state
+            analysisResults = null;
+            clearError('analysisError');
+            document.getElementById('truncationWarning').classList.add('hidden');
+
+            // Show a brief loading flash so the user sees something happen
+            showLoading('Loading demo...', 'Populating sample analysis results');
+            setTimeout(() => {
+                hideLoading();
+                analysisResults = { ...DEMO_RESULT };
+                displayResults(analysisResults);
+
+                // Insert a visible demo banner above the results
+                const section = document.getElementById('resultsSection');
+                const existing = document.getElementById('demoBanner');
+                if (!existing) {
+                    const banner = document.createElement('div');
+                    banner.id = 'demoBanner';
+                    banner.style.cssText = 'background:#fef3c7;border:2px dashed #f59e0b;border-radius:8px;padding:0.75rem 1.25rem;margin-bottom:1.5rem;color:#92400e;font-size:0.9rem;text-align:center;';
+                    banner.textContent = 'DEMO MODE — These are sample results. Upload a real contract and click Analyse Contract to get actual AI analysis.';
+                    section.insertBefore(banner, section.firstChild);
+                }
+            }, 600);
+        }
+
         // ─── Main Analysis Orchestration ──────────────────────────────────────────
         async function analyzeContract() {
             if (!currentFile || !apiKey) return;
@@ -1473,6 +1628,8 @@
             document.getElementById('truncationWarning').classList.add('hidden');
             clearError('uploadError');
             clearError('analysisError');
+            const demoBanner = document.getElementById('demoBanner');
+            if (demoBanner) demoBanner.remove();
 
             const analyzeBtn = document.getElementById('analyzeBtn');
             analyzeBtn.disabled = true;

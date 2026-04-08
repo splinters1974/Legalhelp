@@ -65,17 +65,12 @@
             gap: 1rem;
         }
 
-        .logo-placeholder {
-            width: 48px;
-            height: 48px;
-            background: var(--amber-accent);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.5rem;
-            color: var(--navy-primary);
+        .logo-img {
+            height: 44px;
+            width: auto;
+            background: var(--white);
+            border-radius: 6px;
+            padding: 4px 8px;
         }
 
         .brand-text h1 {
@@ -1030,12 +1025,7 @@
     <header class="header">
         <div class="header-content">
             <div class="logo-area">
-                <!-- Logo zone: swap the placeholder below for an <img> tag when branding is confirmed -->
-                <div class="logo-placeholder">A</div>
-                <div class="brand-text">
-                    <h1>Contract Risk Analyser</h1>
-                    <p>AI-powered contract review for Ameresco teams</p>
-                </div>
+                <img src="./logo.png" alt="Ameresco Contract Assistance" class="logo-img">
             </div>
             <button class="btn btn-outline" onclick="resetApiKey()" style="color: var(--white); border-color: rgba(255,255,255,0.3);">
                 Change API Key
@@ -2121,8 +2111,24 @@ Rules:
             </div>`;
         }
 
+        // ─── Logo helper (fetches once, caches as data URL) ───────────────────────
+        let _logoDataUrl = null;
+        async function getLogoDataUrl() {
+            if (_logoDataUrl) return _logoDataUrl;
+            try {
+                const resp = await fetch('./logo.png');
+                const blob = await resp.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => { _logoDataUrl = reader.result; resolve(_logoDataUrl); };
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { return null; }
+        }
+
         // ─── PDF Report ───────────────────────────────────────────────────────────
-        function downloadPDF() {
+        async function downloadPDF() {
             if (!analysisResults) return;
             clearError('downloadError');
             if (!window.jspdf) {
@@ -2193,32 +2199,42 @@ Rules:
                 return y + 6;
             }
 
-            // ── Page 1 header band ─────────────────────────────────────────────────
-            doc.setFillColor(...C.navy);
-            doc.rect(0, 0, W, 44, 'F');
+            // ── Page 1 header ──────────────────────────────────────────────────────
+            // White strip for logo
+            const logoUrl = await getLogoDataUrl();
+            doc.setFillColor(...C.white);
+            doc.rect(0, 0, W, 22, 'F');
+            if (logoUrl) {
+                // 2.18:1 aspect ratio — 44mm wide = ~20.2mm tall, centred in 22mm strip
+                doc.addImage(logoUrl, 'PNG', M, 1, 44, 20.2);
+            }
 
-            doc.setFontSize(20);
+            // Navy band below logo strip
+            doc.setFillColor(...C.navy);
+            doc.rect(0, 22, W, 36, 'F');
+
+            doc.setFontSize(18);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(...C.white);
-            doc.text('Contract Risk Analysis', M, 19);
+            doc.text('Contract Risk Analysis', M, 37);
 
             doc.setFontSize(9);
             doc.setFont(undefined, 'normal');
             doc.setTextColor(180, 200, 218);
-            doc.text('Ameresco Contract Risk Analyser  \u2022  ' + analysisResults.date, M, 29);
-            doc.text('Analysis type: ' + tierLabel(analysisResults.tier), M, 37);
+            doc.text(analysisResults.date, M, 47);
+            doc.text('Analysis type: ' + tierLabel(analysisResults.tier), M, 54);
 
             // Risk badge
             const rc = riskRgb(analysisResults.overallRisk);
             doc.setFillColor(...rc);
-            doc.rect(W - M - 38, 11, 38, 13, 'F');
+            doc.rect(W - M - 38, 29, 38, 13, 'F');
             doc.setFontSize(8.5);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(...C.white);
             doc.text(analysisResults.overallRisk.toUpperCase() + ' RISK',
-                W - M - 19, 19.5, { align: 'center' });
+                W - M - 19, 37.5, { align: 'center' });
 
-            let y = 54;
+            let y = 67;
 
             // Document info bar
             doc.setFillColor(...C.g100);
@@ -2420,7 +2436,7 @@ Rules:
         }
 
         // ─── Word Report ──────────────────────────────────────────────────────────
-        function downloadWord() {
+        async function downloadWord() {
             if (!analysisResults) return;
             clearError('downloadError');
             if (!window.docx) {
@@ -2430,7 +2446,7 @@ Rules:
             }
 
             const {
-                Document, Paragraph, TextRun, AlignmentType,
+                Document, Paragraph, TextRun, ImageRun, AlignmentType,
                 BorderStyle, Packer
             } = window.docx;
 
@@ -2442,6 +2458,13 @@ Rules:
                 [(lvl || 'medium').toLowerCase()] || 'F59E0B';
 
             const children = [];
+
+            // ── Logo ───────────────────────────────────────────────────────────────
+            let logoArrayBuffer = null;
+            try {
+                const resp = await fetch('./logo.png');
+                logoArrayBuffer = await resp.arrayBuffer();
+            } catch { /* proceed without logo */ }
 
             // ── Helpers ────────────────────────────────────────────────────────────
             const run   = (text, opts) => new TextRun({ text: String(text || ''), ...opts });
@@ -2460,6 +2483,19 @@ Rules:
                         },
                     }
                 );
+            }
+
+            // ── Logo block ─────────────────────────────────────────────────────────
+            if (logoArrayBuffer) {
+                // 2.18:1 ratio — 180pt wide = ~82.6pt tall
+                children.push(new Paragraph({
+                    children: [new ImageRun({
+                        data: logoArrayBuffer,
+                        transformation: { width: 220, height: 101 },
+                        type: 'png',
+                    })],
+                    spacing: { after: 200 },
+                }));
             }
 
             // ── Title block ────────────────────────────────────────────────────────

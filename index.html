@@ -1338,21 +1338,277 @@
                     warningEl.classList.remove('hidden');
                 }
 
-                hideLoading();
+                // ── Step 5: Send to Claude ────────────────────────────────────────
+                showLoading('Sending to Claude...', 'AI analysis in progress — this takes 30–60 seconds');
+                const rawResponse = await callClaudeAPI(contractText, selectedTier);
 
-                // ── Step 5: Hand off to Claude (implemented in Chunk 3) ───────────
-                console.log(
-                    `Extraction complete. ${extractionMeta.chars.toLocaleString()} chars ready for analysis.`,
-                    extractionMeta
-                );
-                // TODO(Chunk 3): call Claude API here
+                // ── Step 6: Parse structured response ─────────────────────────────
+                showLoading('Processing results...', 'Almost done');
+                const parsed = parseResponse(rawResponse, selectedTier);
+
+                // ── Step 7: Display results (implemented in Chunk 4) ──────────────
+                analysisResults = {
+                    ...parsed,
+                    tier: selectedTier,
+                    fileName: currentFile.name,
+                    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+                };
+                hideLoading();
+                displayResults(analysisResults); // implemented in Chunk 4
 
             } catch (err) {
                 hideLoading();
-                console.error('Extraction error:', err);
-                // Inline error handling improved in Chunk 6; alert is a temporary placeholder
-                alert('Could not read this document: ' + err.message);
+                console.error('Analysis error:', err);
+                // Inline error UI improved in Chunk 6; alert is a temporary placeholder
+                alert(err.message || 'Something went wrong. Please try again.');
             }
+        }
+
+        // ─── Claude API ───────────────────────────────────────────────────────────
+
+        // System prompt — establishes persona for all tiers
+        const SYSTEM_PROMPT = `You are a senior commercial adviser helping Ameresco, an energy and infrastructure \
+company that works across public and private sector projects. Ameresco's contracts include JCT construction \
+contracts, PPAs (Power Purchase Agreements), energy supply agreements, NDAs, framework agreements, \
+service contracts, and subcontractor agreements.
+
+Your role is to review contracts and explain risks in plain English to non-lawyers — typically sales \
+and commercial managers who need to understand what they are signing without legal training. Write as \
+a knowledgeable and direct commercial colleague, not as a lawyer. Explain what clauses mean in practice \
+for Ameresco, not just what they say. If you must use a legal term, explain it immediately in plain English.
+
+You will return your analysis as a single JSON object matching the schema provided. \
+Return ONLY the raw JSON — no markdown, no code fences, no commentary before or after. \
+Every string field must be plain text (no markdown formatting inside JSON values).`;
+
+        function buildPrompt(tier) {
+            const tierInstructions = {
+                light: `Analyse the contract below and return a JSON object with this exact structure:
+
+{
+  "overallRisk": "High" | "Medium" | "Low",
+  "overallJustification": "One clear sentence explaining this rating",
+  "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture. Write for a sales manager who has 5 minutes before a call.",
+  "topRisks": [
+    {
+      "title": "Short descriptive title (max 8 words)",
+      "level": "High" | "Medium" | "Low",
+      "description": "2–3 sentences explaining what this risk is in plain English — not legal language",
+      "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco — financial exposure, operational risk, reputational concern, etc."
+    }
+  ]
+}
+
+Rules:
+- topRisks must contain exactly 5 items, ordered High → Low
+- overallRisk reflects the single highest risk level, or Medium if risks are mixed
+- Do not include fields not listed above
+- Return ONLY the JSON object`,
+
+                medium: `Analyse the contract below and return a JSON object with this exact structure:
+
+{
+  "overallRisk": "High" | "Medium" | "Low",
+  "overallJustification": "One clear sentence explaining this rating",
+  "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture.",
+  "topRisks": [
+    {
+      "title": "Short descriptive title (max 8 words)",
+      "level": "High" | "Medium" | "Low",
+      "description": "2–3 sentences explaining what this risk is in plain English",
+      "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco"
+    }
+  ],
+  "clauseBreakdown": [
+    {
+      "clauseRef": "Clause number or heading (e.g. 'Clause 8.2' or 'Termination')",
+      "keyText": "The most relevant wording from the clause — quote directly, max 50 words",
+      "meaning": "What this clause means in practice — plain English, no jargon",
+      "risk": "The specific risk or concern this creates for Ameresco"
+    }
+  ]
+}
+
+Rules:
+- topRisks must contain exactly 5 items, ordered High → Low
+- clauseBreakdown must contain 6–10 of the most commercially significant clauses
+- Include both problematic clauses AND any clauses that are unusually favourable to Ameresco
+- Do not include fields not listed above
+- Return ONLY the JSON object`,
+
+                high: `Analyse the contract below and return a JSON object with this exact structure:
+
+{
+  "overallRisk": "High" | "Medium" | "Low",
+  "overallJustification": "One clear sentence explaining this rating",
+  "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture.",
+  "topRisks": [
+    {
+      "title": "Short descriptive title (max 8 words)",
+      "level": "High" | "Medium" | "Low",
+      "description": "2–3 sentences explaining what this risk is in plain English",
+      "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco"
+    }
+  ],
+  "clauseBreakdown": [
+    {
+      "clauseRef": "Clause number or heading",
+      "keyText": "Relevant wording — quote directly, max 50 words",
+      "meaning": "What this clause means in practice",
+      "risk": "The specific risk or concern for Ameresco"
+    }
+  ],
+  "missingClauses": [
+    "Plain English description of a clause that is absent but should be present — explain what protection it would give Ameresco"
+  ],
+  "recommendedActions": [
+    "Specific, actionable step — e.g. a question to raise with legal, a clause to request, or a condition to clarify before signing"
+  ],
+  "negotiationPoints": [
+    {
+      "point": "The clause or term Ameresco should push back on",
+      "leverage": "Why Ameresco has grounds to negotiate here and what a better position looks like"
+    }
+  ]
+}
+
+Rules:
+- topRisks must contain exactly 5 items, ordered High → Low
+- clauseBreakdown must contain 6–10 clauses
+- missingClauses: list any standard protections that are absent (3–6 items); if none are missing, return an empty array
+- recommendedActions: 4–8 specific, actionable items
+- negotiationPoints: 3–6 items, prioritised by importance to Ameresco
+- Do not include fields not listed above
+- Return ONLY the JSON object`
+            };
+
+            return tierInstructions[tier];
+        }
+
+        // ─── Call Claude API ───────────────────────────────────────────────────────
+        const MAX_TOKENS = { light: 2048, medium: 4096, high: 8192 };
+
+        async function callClaudeAPI(text, tier) {
+            const body = {
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: MAX_TOKENS[tier],
+                system: SYSTEM_PROMPT,
+                messages: [{
+                    role: 'user',
+                    content: buildPrompt(tier) + '\n\n---\n\nCONTRACT TEXT:\n\n' + text
+                }]
+            };
+
+            let response;
+            try {
+                response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify(body)
+                });
+            } catch (networkErr) {
+                throw new Error('Network error — check your internet connection and try again.');
+            }
+
+            if (!response.ok) {
+                let errMsg;
+                try {
+                    const errData = await response.json();
+                    errMsg = errData.error?.message || response.statusText;
+                } catch {
+                    errMsg = response.statusText;
+                }
+
+                if (response.status === 401) {
+                    throw new Error('Invalid API key. Please click "Change API Key" and enter a valid Anthropic key starting with sk-ant.');
+                }
+                if (response.status === 429) {
+                    throw new Error('Rate limit reached on your Anthropic account. Wait a moment and try again, or check your usage limits in the Anthropic console.');
+                }
+                if (response.status >= 500) {
+                    throw new Error('Anthropic service error. Please try again in a few minutes.');
+                }
+                throw new Error(`API error (${response.status}): ${errMsg}`);
+            }
+
+            const data = await response.json();
+            return data.content[0].text;
+        }
+
+        // ─── Parse Claude Response ─────────────────────────────────────────────────
+        function parseResponse(raw, tier) {
+            // 1. Try direct JSON parse
+            let parsed = null;
+            try {
+                parsed = JSON.parse(raw.trim());
+            } catch {
+                // 2. Claude sometimes wraps JSON in a ```json ... ``` code block
+                const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+                if (fenceMatch) {
+                    try {
+                        parsed = JSON.parse(fenceMatch[1].trim());
+                    } catch { /* fall through */ }
+                }
+            }
+
+            // 3. If still not parsed, extract the first {...} block
+            if (!parsed) {
+                const braceMatch = raw.match(/\{[\s\S]*\}/);
+                if (braceMatch) {
+                    try {
+                        parsed = JSON.parse(braceMatch[0]);
+                    } catch { /* fall through */ }
+                }
+            }
+
+            // 4. Hard fallback — wrap raw text so the rest of the UI can still render
+            if (!parsed) {
+                console.warn('Could not parse Claude response as JSON. Falling back to raw text.', raw);
+                return {
+                    overallRisk: 'Unknown',
+                    overallJustification: '',
+                    executiveSummary: raw,
+                    topRisks: [],
+                    clauseBreakdown: [],
+                    missingClauses: [],
+                    recommendedActions: [],
+                    negotiationPoints: [],
+                    rawFallback: true
+                };
+            }
+
+            // 5. Normalise — ensure all expected arrays exist for every tier
+            parsed.topRisks = parsed.topRisks || [];
+            parsed.clauseBreakdown = parsed.clauseBreakdown || [];
+            parsed.missingClauses = parsed.missingClauses || [];
+            parsed.recommendedActions = parsed.recommendedActions || [];
+            parsed.negotiationPoints = parsed.negotiationPoints || [];
+
+            // Normalise risk levels to title-case so CSS classes work reliably
+            const toTitleCase = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+            parsed.overallRisk = toTitleCase(parsed.overallRisk);
+            parsed.topRisks = parsed.topRisks.map(r => ({ ...r, level: toTitleCase(r.level) }));
+
+            return parsed;
+        }
+
+        // ─── Display Results (stub — implemented in Chunk 4) ──────────────────────
+        function displayResults(results) {
+            // Full implementation in Chunk 4
+            console.log('Analysis complete. Results ready for display:', results);
+            // Temporary: show the overall risk so we know it's working end-to-end
+            const section = document.getElementById('resultsSection');
+            document.getElementById('scoreValue').textContent = results.overallRisk;
+            document.getElementById('scoreValue').className = 'score-value score-' + results.overallRisk.toLowerCase();
+            document.getElementById('executiveSummary').textContent = results.executiveSummary;
+            document.getElementById('analysisDate').textContent =
+                `Analysed on ${results.date} · ${results.tier.charAt(0).toUpperCase() + results.tier.slice(1)} Touch`;
+            section.classList.add('show');
+            section.scrollIntoView({ behavior: 'smooth' });
         }
 
         // ─── Report Downloads (stubs — implemented in Chunk 5) ────────────────────

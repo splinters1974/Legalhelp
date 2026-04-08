@@ -805,6 +805,161 @@
             margin-top: 0.1rem;
             color: var(--amber-accent);
         }
+
+        /* ── Chunk 4: Results display ──────────────────────────────────────────── */
+
+        /* Multi-paragraph executive summary */
+        .summary-content p { margin-bottom: 0.75rem; }
+        .summary-content p:last-child { margin-bottom: 0; }
+
+        /* Score justification subtitle */
+        .score-justification {
+            font-size: 0.75rem;
+            color: var(--slate-light);
+            margin-top: 0.4rem;
+            max-width: 160px;
+            line-height: 1.4;
+        }
+
+        /* Clause breakdown (Medium + High) */
+        .clause-item {
+            background: var(--gray-100);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .clause-ref {
+            font-weight: 600;
+            color: var(--navy-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .clause-key-text {
+            font-style: italic;
+            color: var(--slate-light);
+            background: var(--white);
+            border-left: 3px solid var(--amber-accent);
+            padding: 0.6rem 0.75rem;
+            border-radius: 0 4px 4px 0;
+            margin-bottom: 0.875rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .clause-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .clause-meaning-block,
+        .clause-risk-block {
+            font-size: 0.9rem;
+        }
+        .clause-meaning-block strong,
+        .clause-risk-block strong {
+            display: block;
+            color: var(--navy-primary);
+            margin-bottom: 0.3rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .clause-meaning-block { color: var(--slate-primary); line-height: 1.55; }
+        .clause-risk-block    { color: var(--slate-primary); line-height: 1.55; }
+        @media (max-width: 640px) { .clause-body { grid-template-columns: 1fr; } }
+
+        /* Missing clauses callout (High only) */
+        .missing-callout {
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 1.25rem 1.5rem;
+        }
+        .missing-list { list-style: none; }
+        .missing-list li {
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+            color: var(--slate-primary);
+            font-size: 0.925rem;
+            line-height: 1.55;
+            display: flex;
+            gap: 0.65rem;
+            align-items: flex-start;
+        }
+        .missing-list li:last-child { border-bottom: none; }
+        .missing-list li::before {
+            content: '⚠';
+            font-size: 0.8rem;
+            color: var(--amber-accent);
+            flex-shrink: 0;
+            margin-top: 0.15rem;
+        }
+
+        /* Recommended actions checklist (High only) */
+        .rec-list { list-style: none; }
+        .rec-list li {
+            padding: 0.7rem 0 0.7rem 1.75rem;
+            border-bottom: 1px solid var(--gray-200);
+            color: var(--slate-primary);
+            font-size: 0.925rem;
+            line-height: 1.55;
+            position: relative;
+        }
+        .rec-list li:last-child { border-bottom: none; }
+        .rec-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--amber-accent);
+            font-weight: 700;
+        }
+
+        /* Negotiation points (High only) */
+        .neg-item {
+            background: var(--gray-100);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 0.875rem;
+        }
+        .neg-point {
+            font-weight: 600;
+            color: var(--navy-primary);
+            margin-bottom: 0.4rem;
+            font-size: 0.95rem;
+        }
+        .neg-leverage {
+            color: var(--slate-primary);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+        .neg-leverage::before {
+            content: 'Leverage: ';
+            font-weight: 600;
+            color: var(--slate-light);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* Raw fallback notice */
+        .raw-fallback-notice {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--slate-primary);
+        }
+        .raw-fallback-pre {
+            white-space: pre-wrap;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: var(--slate-primary);
+            line-height: 1.7;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -983,6 +1138,7 @@
                 <div class="overall-score" id="overallScore">
                     <div class="score-label">Overall Risk</div>
                     <div class="score-value score-medium" id="scoreValue">Medium</div>
+                    <div class="score-justification" id="scoreJustification"></div>
                 </div>
             </div>
 
@@ -1000,7 +1156,7 @@
             </div>
 
             <!-- Top Risks -->
-            <h3 style="margin-bottom: 1rem; color: var(--navy-primary);">Key Risks Identified</h3>
+            <h3 id="riskGridHeading" style="margin-bottom: 1rem; color: var(--navy-primary);">Key Risks Identified</h3>
             <div class="risk-grid" id="riskGrid">
                 <!-- Risk cards inserted by JS -->
             </div>
@@ -1596,19 +1752,160 @@ Rules:
             return parsed;
         }
 
-        // ─── Display Results (stub — implemented in Chunk 4) ──────────────────────
+        // ─── HTML escape helper ───────────────────────────────────────────────────
+        // All Claude-generated content passes through this before going into innerHTML
+        function escHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function tierLabel(tier) {
+            return { light: 'Light Touch', medium: 'Medium Touch', high: 'High Touch' }[tier] || tier;
+        }
+
+        // ─── Results Display ──────────────────────────────────────────────────────
         function displayResults(results) {
-            // Full implementation in Chunk 4
-            console.log('Analysis complete. Results ready for display:', results);
-            // Temporary: show the overall risk so we know it's working end-to-end
-            const section = document.getElementById('resultsSection');
-            document.getElementById('scoreValue').textContent = results.overallRisk;
-            document.getElementById('scoreValue').className = 'score-value score-' + results.overallRisk.toLowerCase();
-            document.getElementById('executiveSummary').textContent = results.executiveSummary;
+            // 1. Overall risk score + justification
+            const scoreEl = document.getElementById('scoreValue');
+            scoreEl.textContent = results.overallRisk;
+            scoreEl.className = 'score-value score-' + results.overallRisk.toLowerCase();
+            const justEl = document.getElementById('scoreJustification');
+            justEl.textContent = results.overallJustification || '';
+
+            // 2. Date + tier label
             document.getElementById('analysisDate').textContent =
-                `Analysed on ${results.date} · ${results.tier.charAt(0).toUpperCase() + results.tier.slice(1)} Touch`;
-            section.classList.add('show');
+                `Analysed on ${results.date} \u00b7 ${tierLabel(results.tier)}`;
+
+            // 3. Executive summary — split on double newlines → multiple <p> tags
+            document.getElementById('executiveSummary').innerHTML =
+                (results.executiveSummary || '')
+                    .split(/\n\n+/)
+                    .filter(p => p.trim())
+                    .map(p => `<p>${escHtml(p.trim()).replace(/\n/g, '<br>')}</p>`)
+                    .join('');
+
+            // 4. Risk cards
+            const hasRisks = results.topRisks && results.topRisks.length > 0;
+            document.getElementById('riskGridHeading').style.display = hasRisks ? '' : 'none';
+            document.getElementById('riskGrid').innerHTML = hasRisks
+                ? renderRiskCards(results.topRisks)
+                : '';
+
+            // 5. Detailed analysis sections (tier-dependent, all skip if empty)
+            document.getElementById('detailedAnalysis').innerHTML =
+                renderDetailedAnalysis(results);
+
+            // 6. Reveal section and scroll into view
+            const section = document.getElementById('resultsSection');
+            section.classList.add('show', 'fade-in');
             section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ─── Render Risk Cards ────────────────────────────────────────────────────
+        function renderRiskCards(topRisks) {
+            return topRisks.map(risk => {
+                const lvl = (risk.level || 'medium').toLowerCase();
+                return `
+                <div class="risk-card risk-${lvl}-card fade-in">
+                    <div class="risk-header">
+                        <span class="risk-title">${escHtml(risk.title)}</span>
+                        <span class="risk-badge badge-risk-${lvl}">${escHtml(risk.level)} Risk</span>
+                    </div>
+                    <div class="risk-description">${escHtml(risk.description)}</div>
+                    ${risk.amerescoImplication ? `
+                    <div class="risk-implication">
+                        <strong>For Ameresco:</strong> ${escHtml(risk.amerescoImplication)}
+                    </div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // ─── Render Detailed Analysis ─────────────────────────────────────────────
+        function renderDetailedAnalysis(results) {
+            if (results.rawFallback) {
+                return `
+                <div class="raw-fallback-notice">
+                    <strong>Note:</strong> The analysis was returned in an unexpected format.
+                    The full response is shown below.
+                </div>
+                <pre class="raw-fallback-pre">${escHtml(results.executiveSummary)}</pre>`;
+            }
+
+            let html = '';
+            html += renderClauseBreakdown(results.clauseBreakdown);
+            html += renderMissingClauses(results.missingClauses);
+            html += renderRecommendations(results.recommendedActions);
+            html += renderNegotiationPoints(results.negotiationPoints);
+            return html;
+        }
+
+        // ─── Clause Breakdown (Medium + High) ────────────────────────────────────
+        function renderClauseBreakdown(clauses) {
+            if (!clauses || clauses.length === 0) return '';
+            const items = clauses.map(c => `
+                <div class="clause-item">
+                    <div class="clause-ref">${escHtml(c.clauseRef)}</div>
+                    ${c.keyText ? `<div class="clause-key-text">&ldquo;${escHtml(c.keyText)}&rdquo;</div>` : ''}
+                    <div class="clause-body">
+                        <div class="clause-meaning-block">
+                            <strong>What it means</strong>
+                            ${escHtml(c.meaning)}
+                        </div>
+                        <div class="clause-risk-block">
+                            <strong>Risk for Ameresco</strong>
+                            ${escHtml(c.risk)}
+                        </div>
+                    </div>
+                </div>`).join('');
+            return `
+            <div class="analysis-section">
+                <h3>Clause Breakdown</h3>
+                ${items}
+            </div>`;
+        }
+
+        // ─── Missing Clauses (High only) ──────────────────────────────────────────
+        function renderMissingClauses(missing) {
+            if (!missing || missing.length === 0) return '';
+            const items = missing.map(m => `<li>${escHtml(m)}</li>`).join('');
+            return `
+            <div class="analysis-section">
+                <h3>Missing or Absent Clauses</h3>
+                <div class="missing-callout">
+                    <ul class="missing-list">${items}</ul>
+                </div>
+            </div>`;
+        }
+
+        // ─── Recommended Actions (High only) ─────────────────────────────────────
+        function renderRecommendations(actions) {
+            if (!actions || actions.length === 0) return '';
+            const items = actions.map(a => `<li>${escHtml(a)}</li>`).join('');
+            return `
+            <div class="analysis-section">
+                <h3>Recommended Actions</h3>
+                <ul class="rec-list">${items}</ul>
+            </div>`;
+        }
+
+        // ─── Negotiation Points (High only) ──────────────────────────────────────
+        function renderNegotiationPoints(points) {
+            if (!points || points.length === 0) return '';
+            const items = points.map(p => `
+                <div class="neg-item">
+                    <div class="neg-point">${escHtml(p.point)}</div>
+                    <div class="neg-leverage">${escHtml(p.leverage)}</div>
+                </div>`).join('');
+            return `
+            <div class="analysis-section">
+                <h3>Negotiation Leverage Points</h3>
+                ${items}
+            </div>`;
         }
 
         // ─── Report Downloads (stubs — implemented in Chunk 5) ────────────────────

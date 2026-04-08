@@ -942,6 +942,28 @@
             letter-spacing: 0.04em;
         }
 
+        /* Inline error banners */
+        .error-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.875rem 1.25rem;
+            background: rgba(220, 38, 38, 0.06);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: 8px;
+            color: var(--risk-high);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin-top: 1rem;
+        }
+        .error-banner::before {
+            content: '✕';
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 0.1rem;
+        }
+
         /* Raw fallback notice */
         .raw-fallback-notice {
             background: rgba(245, 158, 11, 0.08);
@@ -1039,6 +1061,7 @@
                     </svg>
                 </button>
             </div>
+            <div id="uploadError" class="error-banner hidden" role="alert"></div>
         </section>
 
         <!-- Analysis Tier Selection -->
@@ -1126,6 +1149,8 @@
             <button class="btn-analyze" id="analyzeBtn" onclick="analyzeContract()" disabled>
                 Analyse Contract
             </button>
+            <div id="analysisError" class="error-banner hidden" role="alert"
+                 style="max-width:600px; margin:1rem auto 0;"></div>
         </section>
 
         <!-- Results Section -->
@@ -1186,6 +1211,8 @@
                     </svg>
                     Analyse Another Contract
                 </button>
+                <div id="downloadError" class="error-banner hidden" role="alert"
+                     style="width:100%;"></div>
             </div>
         </section>
 
@@ -1237,6 +1264,21 @@
             });
         });
 
+        // ─── Inline Error Helpers ─────────────────────────────────────────────────
+        function showError(id, message) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = message;
+            el.classList.remove('hidden');
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        function clearError(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = '';
+            el.classList.add('hidden');
+        }
+
         // ─── API Key ──────────────────────────────────────────────────────────────
         function saveApiKey() {
             const key = document.getElementById('apiKey').value.trim();
@@ -1268,10 +1310,11 @@
         function handleFile(file) {
             const ext = file.name.split('.').pop().toLowerCase();
             if (!['pdf', 'doc', 'docx'].includes(ext)) {
-                // Inline error — will be replaced with proper UI in Chunk 6
-                alert('Please upload a PDF or Word document (.pdf, .doc, .docx)');
+                showError('uploadError',
+                    'Unsupported file type. Please upload a PDF or Word document (.pdf, .doc, .docx).');
                 return;
             }
+            clearError('uploadError');
             currentFile = file;
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
@@ -1424,10 +1467,16 @@
         async function analyzeContract() {
             if (!currentFile || !apiKey) return;
 
-            // Reset any previous extraction state
+            // Reset any previous state and clear errors
             contractText = '';
             extractionMeta = null;
             document.getElementById('truncationWarning').classList.add('hidden');
+            clearError('uploadError');
+            clearError('analysisError');
+
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = 'Analysing\u2026';
 
             showLoading('Reading document...', 'Preparing to extract contract text');
 
@@ -1444,7 +1493,10 @@
 
                 if (!extracted.text || extracted.text.trim().length < 50) {
                     hideLoading();
-                    alert('Could not extract readable text from this document. The file may be scanned (image-only PDF) or password protected.');
+                    showError('uploadError',
+                        'Could not extract readable text from this document. ' +
+                        'The file may be a scanned (image-only) PDF or password protected. ' +
+                        'Try a text-based PDF or convert the document to Word first.');
                     return;
                 }
 
@@ -1494,7 +1546,7 @@
                     warningEl.classList.remove('hidden');
                 }
 
-                // ── Step 5: Send to Claude ────────────────────────────────────────
+                // ── Step 5: Send to Claude ──────────────────────────────────────
                 showLoading('Sending to Claude...', 'AI analysis in progress — this takes 30–60 seconds');
                 const rawResponse = await callClaudeAPI(contractText, selectedTier);
 
@@ -1502,7 +1554,7 @@
                 showLoading('Processing results...', 'Almost done');
                 const parsed = parseResponse(rawResponse, selectedTier);
 
-                // ── Step 7: Display results (implemented in Chunk 4) ──────────────
+                // ── Step 7: Display results ────────────────────────────────────────
                 analysisResults = {
                     ...parsed,
                     tier: selectedTier,
@@ -1510,13 +1562,17 @@
                     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
                 };
                 hideLoading();
-                displayResults(analysisResults); // implemented in Chunk 4
+                displayResults(analysisResults);
 
             } catch (err) {
                 hideLoading();
                 console.error('Analysis error:', err);
-                // Inline error UI improved in Chunk 6; alert is a temporary placeholder
-                alert(err.message || 'Something went wrong. Please try again.');
+                showError('analysisError',
+                    err.message || 'Something went wrong. Please try again.');
+            } finally {
+                const btn = document.getElementById('analyzeBtn');
+                btn.disabled = !currentFile;
+                btn.textContent = 'Analyse Contract';
             }
         }
 
@@ -1723,7 +1779,6 @@ Rules:
 
             // 4. Hard fallback — wrap raw text so the rest of the UI can still render
             if (!parsed) {
-                console.warn('Could not parse Claude response as JSON. Falling back to raw text.', raw);
                 return {
                     overallRisk: 'Unknown',
                     overallJustification: '',
@@ -1911,7 +1966,12 @@ Rules:
         // ─── PDF Report ───────────────────────────────────────────────────────────
         function downloadPDF() {
             if (!analysisResults) return;
-            if (!window.jspdf) { alert('PDF library not loaded. Please refresh the page.'); return; }
+            clearError('downloadError');
+            if (!window.jspdf) {
+                showError('downloadError',
+                    'PDF library failed to load. Please refresh the page and try again.');
+                return;
+            }
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -2204,7 +2264,12 @@ Rules:
         // ─── Word Report ──────────────────────────────────────────────────────────
         function downloadWord() {
             if (!analysisResults) return;
-            if (!window.docx) { alert('Word library not loaded. Please refresh the page.'); return; }
+            clearError('downloadError');
+            if (!window.docx) {
+                showError('downloadError',
+                    'Word library failed to load. Please refresh the page and try again.');
+                return;
+            }
 
             const {
                 Document, Paragraph, TextRun, AlignmentType,
@@ -2398,7 +2463,8 @@ Rules:
                     new Date().toISOString().split('T')[0] + '.docx');
             }).catch(err => {
                 console.error('Word export error:', err);
-                alert('Could not generate Word document: ' + err.message);
+                showError('downloadError',
+                    'Could not generate the Word document: ' + err.message);
             });
         }
 

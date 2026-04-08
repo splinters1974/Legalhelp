@@ -71,11 +71,11 @@ Users enter their Anthropic API key when they first open the tool. The key:
 | Chunk | Status | Description |
 |-------|--------|-------------|
 | 1 — Foundation | ✅ Complete | HTML/CSS scaffold, netlify config, repo setup |
-| 2 — Document Processing | 🔲 Pending | PDF and Word text extraction |
-| 3 — Claude Integration | 🔲 Pending | Structured JSON prompts, API call, response parsing |
-| 4 — Results Display | 🔲 Pending | Risk cards, clause breakdown, recommendations |
-| 5 — Report Generation | 🔲 Pending | PDF and Word download with professional formatting |
-| 6 — Polish & Deploy | 🔲 Pending | Error handling, mobile, final hardening |
+| 2 — Document Processing | ✅ Complete | PDF (page-by-page, progress) and Word extraction, smart truncation |
+| 3 — Claude Integration | ✅ Complete | Structured JSON prompts, API call, 4-layer response parsing |
+| 4 — Results Display | ✅ Complete | Risk cards, clause breakdown, recommendations, negotiation points |
+| 5 — Report Generation | ✅ Complete | PDF (jsPDF, page-break logic) and Word (docx.js) downloads |
+| 6 — Polish & Deploy | ✅ Complete | Inline error UI, button state, no alerts, final clean-up |
 
 ---
 

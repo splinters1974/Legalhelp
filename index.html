@@ -773,6 +773,38 @@
         .hidden {
             display: none !important;
         }
+
+        /* Document stats shown after file selection */
+        .doc-stats {
+            display: none;
+            font-size: 0.8rem;
+            color: var(--slate-light);
+            margin-top: 0.25rem;
+        }
+
+        .doc-stats.show {
+            display: block;
+        }
+
+        /* Truncation warning */
+        .truncation-warning {
+            margin-top: 1rem;
+            padding: 0.875rem 1.25rem;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--slate-primary);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .truncation-warning svg {
+            flex-shrink: 0;
+            margin-top: 0.1rem;
+            color: var(--amber-accent);
+        }
     </style>
 </head>
 <body>
@@ -833,11 +865,18 @@
                 </div>
             </div>
             <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx" onchange="handleFileSelect(event)">
+            <div id="truncationWarning" class="truncation-warning hidden">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+                </svg>
+                <span id="truncationMessage"></span>
+            </div>
             <div class="file-info" id="fileInfo">
                 <div class="file-icon" id="fileIcon">PDF</div>
                 <div class="file-details">
                     <div class="file-name" id="fileName">document.pdf</div>
                     <div class="file-size" id="fileSize">2.4 MB</div>
+                    <div class="doc-stats" id="docStats"></div>
                 </div>
                 <button class="remove-file" onclick="removeFile()" title="Remove file">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1007,11 +1046,24 @@
         let currentFile = null;
         let selectedTier = 'medium';
         let analysisResults = null;
+        let contractText = '';          // populated by extraction in analyzeContract()
+        let extractionMeta = null;      // { pages, chars, truncated, pagesCapped }
+
+        // Character limit sent to Claude — leaves ample room for prompt + response
+        const MAX_CHARS = 100000;
+        // Page cap for PDFs to avoid very long extraction on huge documents
+        const MAX_PDF_PAGES = 200;
 
         // ─── Init ─────────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
             // Show API key modal if no key stored
             document.getElementById('apiModal').style.display = apiKey ? 'none' : 'flex';
+
+            // Configure PDF.js worker from the same CDN version
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc =
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
 
             // Drag-and-drop
             const uploadArea = document.getElementById('uploadArea');
@@ -1074,9 +1126,14 @@
 
         function removeFile() {
             currentFile = null;
+            contractText = '';
+            extractionMeta = null;
             document.getElementById('fileInfo').classList.remove('show');
             document.getElementById('fileInput').value = '';
             document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('docStats').classList.remove('show');
+            document.getElementById('docStats').textContent = '';
+            document.getElementById('truncationWarning').classList.add('hidden');
         }
 
         function formatFileSize(bytes) {
@@ -1094,22 +1151,208 @@
             document.getElementById('tier-' + tier).classList.add('selected');
         }
 
-        // ─── Analysis (stub — implemented in Chunk 3) ─────────────────────────────
-        async function analyzeContract() {
-            if (!currentFile || !apiKey) return;
-            // Full implementation coming in Chunks 2 & 3
-            console.log('analyzeContract() called — implementation in progress');
-        }
-
-        // ─── Loading helpers (used by future chunks) ──────────────────────────────
+        // ─── Loading helpers ──────────────────────────────────────────────────────
         function showLoading(text, subtext) {
             document.getElementById('loadingText').textContent = text || 'Analysing your contract...';
-            document.getElementById('loadingSubtext').textContent = subtext || 'This may take a minute depending on document length';
+            document.getElementById('loadingSubtext').textContent = subtext || 'This may take a moment';
             document.getElementById('loadingOverlay').classList.add('show');
         }
 
         function hideLoading() {
             document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        // ─── PDF Text Extraction ──────────────────────────────────────────────────
+        async function extractPDFText(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+            const totalPages = pdf.numPages;
+            const pagesToProcess = Math.min(totalPages, MAX_PDF_PAGES);
+            const pagesCapped = totalPages > MAX_PDF_PAGES;
+
+            const pageTexts = [];
+
+            for (let i = 1; i <= pagesToProcess; i++) {
+                // Update progress in loading overlay
+                showLoading(
+                    `Reading document — page ${i} of ${pagesToProcess}`,
+                    pagesCapped
+                        ? `Processing first ${MAX_PDF_PAGES} of ${totalPages} pages`
+                        : 'Extracting contract text...'
+                );
+
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+
+                // Build page text, preserving line breaks between text items
+                // that have significant vertical separation
+                let pageText = '';
+                let lastY = null;
+                for (const item of content.items) {
+                    if (!item.str) continue;
+                    // If this item is on a new line (Y position changed), add a newline
+                    const currentY = item.transform ? item.transform[5] : null;
+                    if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 2) {
+                        pageText += '\n';
+                    }
+                    pageText += item.str;
+                    if (item.hasEOL) pageText += '\n';
+                    lastY = currentY;
+                }
+
+                // Collapse multiple spaces but preserve intentional newlines
+                pageText = pageText.replace(/[ \t]+/g, ' ').trim();
+                if (pageText) pageTexts.push(pageText);
+            }
+
+            // Join pages with double newline so Claude can distinguish page breaks
+            const rawText = pageTexts.join('\n\n');
+
+            return { text: rawText, pages: pagesToProcess, totalPages, pagesCapped };
+        }
+
+        // ─── Word Text Extraction ─────────────────────────────────────────────────
+        async function extractWordText(file) {
+            const arrayBuffer = await file.arrayBuffer();
+
+            showLoading('Reading document...', 'Extracting contract text from Word document');
+
+            const result = await mammoth.extractRawText({ arrayBuffer });
+
+            // Mammoth uses single \n between paragraphs; normalise to double \n
+            // so Claude sees clear paragraph breaks
+            const text = result.value
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .join('\n\n');
+
+            return { text, pages: null, totalPages: null, pagesCapped: false };
+        }
+
+        // ─── Smart Truncation ─────────────────────────────────────────────────────
+        // Cuts at MAX_CHARS but tries to end on a sentence boundary so Claude
+        // doesn't receive a document mid-clause.
+        function truncateText(text, maxChars) {
+            if (text.length <= maxChars) {
+                return { text, truncated: false };
+            }
+
+            // Work backwards from the limit looking for a sentence-ending period
+            // followed by a space or newline
+            let cutPoint = maxChars;
+            const lookback = 2000; // search up to 2000 chars back for a clean break
+            const searchFrom = Math.max(0, maxChars - lookback);
+            const segment = text.substring(searchFrom, maxChars);
+
+            // Find the last '. ' or '.\n' in that segment
+            const lastPeriod = Math.max(
+                segment.lastIndexOf('. '),
+                segment.lastIndexOf('.\n')
+            );
+
+            if (lastPeriod !== -1) {
+                cutPoint = searchFrom + lastPeriod + 1; // include the period
+            }
+
+            return {
+                text: text.substring(0, cutPoint) + '\n\n[Document continues beyond this point — analysis based on text above]',
+                truncated: true,
+                originalChars: text.length,
+                keptChars: cutPoint
+            };
+        }
+
+        // ─── Main Analysis Orchestration ──────────────────────────────────────────
+        async function analyzeContract() {
+            if (!currentFile || !apiKey) return;
+
+            // Reset any previous extraction state
+            contractText = '';
+            extractionMeta = null;
+            document.getElementById('truncationWarning').classList.add('hidden');
+
+            showLoading('Reading document...', 'Preparing to extract contract text');
+
+            try {
+                // ── Step 1: Extract text ──────────────────────────────────────────
+                let extracted;
+                const ext = currentFile.name.split('.').pop().toLowerCase();
+
+                if (ext === 'pdf') {
+                    extracted = await extractPDFText(currentFile);
+                } else {
+                    extracted = await extractWordText(currentFile);
+                }
+
+                if (!extracted.text || extracted.text.trim().length < 50) {
+                    hideLoading();
+                    alert('Could not extract readable text from this document. The file may be scanned (image-only PDF) or password protected.');
+                    return;
+                }
+
+                // ── Step 2: Truncate if needed ────────────────────────────────────
+                showLoading('Processing document...', 'Preparing text for analysis');
+                const truncResult = truncateText(extracted.text, MAX_CHARS);
+                contractText = truncResult.text;
+
+                // ── Step 3: Store metadata ────────────────────────────────────────
+                extractionMeta = {
+                    pages: extracted.pages,
+                    totalPages: extracted.totalPages,
+                    pagesCapped: extracted.pagesCapped,
+                    chars: truncResult.truncated ? truncResult.keptChars : extracted.text.length,
+                    truncated: truncResult.truncated,
+                    originalChars: extracted.text.length,
+                };
+
+                // ── Step 4: Update UI with extraction stats ───────────────────────
+                const statsEl = document.getElementById('docStats');
+                const parts = [];
+                if (extracted.pages) {
+                    parts.push(extracted.pagesCapped
+                        ? `${extracted.pages} of ${extracted.totalPages} pages read`
+                        : `${extracted.pages} page${extracted.pages !== 1 ? 's' : ''}`
+                    );
+                }
+                const wordEstimate = Math.round(extractionMeta.chars / 5);
+                parts.push(`~${wordEstimate.toLocaleString()} words extracted`);
+                statsEl.textContent = parts.join(' • ');
+                statsEl.classList.add('show');
+
+                // Show truncation warning if applicable
+                if (truncResult.truncated || extracted.pagesCapped) {
+                    const warningEl = document.getElementById('truncationWarning');
+                    const msgEl = document.getElementById('truncationMessage');
+                    const messages = [];
+                    if (extracted.pagesCapped) {
+                        messages.push(`Only the first ${MAX_PDF_PAGES} pages of this ${extracted.totalPages}-page document were processed.`);
+                    }
+                    if (truncResult.truncated) {
+                        const keptPct = Math.round((truncResult.keptChars / truncResult.originalChars) * 100);
+                        messages.push(`The document was too long to analyse in full — the first ${keptPct}% of the text was used.`);
+                    }
+                    messages.push('For very long contracts, consider splitting by section and running separate analyses.');
+                    msgEl.textContent = messages.join(' ');
+                    warningEl.classList.remove('hidden');
+                }
+
+                hideLoading();
+
+                // ── Step 5: Hand off to Claude (implemented in Chunk 3) ───────────
+                console.log(
+                    `Extraction complete. ${extractionMeta.chars.toLocaleString()} chars ready for analysis.`,
+                    extractionMeta
+                );
+                // TODO(Chunk 3): call Claude API here
+
+            } catch (err) {
+                hideLoading();
+                console.error('Extraction error:', err);
+                // Inline error handling improved in Chunk 6; alert is a temporary placeholder
+                alert('Could not read this document: ' + err.message);
+            }
         }
 
         // ─── Report Downloads (stubs — implemented in Chunk 5) ────────────────────
@@ -1126,6 +1369,8 @@
             removeFile();
             document.getElementById('resultsSection').classList.remove('show');
             analysisResults = null;
+            contractText = '';
+            extractionMeta = null;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>

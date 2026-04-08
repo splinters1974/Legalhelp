@@ -1908,13 +1908,498 @@ Rules:
             </div>`;
         }
 
-        // ─── Report Downloads (stubs — implemented in Chunk 5) ────────────────────
+        // ─── PDF Report ───────────────────────────────────────────────────────────
         function downloadPDF() {
-            console.log('downloadPDF() — implementation in Chunk 5');
+            if (!analysisResults) return;
+            if (!window.jspdf) { alert('PDF library not loaded. Please refresh the page.'); return; }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+            const W = 210, M = 20, CW = 170;
+            const FOOT_Y = 289, BREAK_Y = 276;
+
+            // Colour palette (RGB arrays)
+            const C = {
+                navy:   [15, 23, 42],   navyBg: [30, 41, 59],
+                slate:  [51, 65, 85],   slateL: [100, 116, 139],
+                amber:  [245, 158, 11], white:  [255, 255, 255],
+                g100:   [241, 245, 249],g200:   [226, 232, 240],
+                high:   [220, 38, 38],  medium: [245, 158, 11],
+                low:    [22, 163, 74],
+            };
+            const riskRgb = (lvl) => C[(lvl || 'medium').toLowerCase()] || C.medium;
+
+            let pg = 1;
+
+            // ── Helpers ────────────────────────────────────────────────────────────
+            function footer() {
+                doc.setFontSize(7.5);
+                doc.setTextColor(...C.slateL);
+                doc.text('Confidential \u2022 Internal Use Only \u2022 Not Legal Advice', M, FOOT_Y);
+                doc.text('Page ' + pg, W - M, FOOT_Y, { align: 'right' });
+            }
+            function newPage() {
+                footer();
+                doc.addPage();
+                pg++;
+                return M;
+            }
+            function chk(y, need) {
+                return (y + (need || 15) > BREAK_Y) ? newPage() : y;
+            }
+            function writePara(text, x, y, maxW, lh) {
+                if (!text) return y;
+                const lines = doc.splitTextToSize(String(text).replace(/\n/g, ' '), maxW || CW);
+                const step = lh || 5.2;
+                for (const line of lines) {
+                    y = chk(y, step);
+                    doc.text(line, x, y);
+                    y += step;
+                }
+                return y;
+            }
+            function sectionHead(title, y) {
+                y = chk(y, 18);
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(...C.navy);
+                doc.text(title, M, y);
+                doc.setFillColor(...C.amber);
+                doc.rect(M, y + 2, doc.getTextWidth(title) + 1, 0.7, 'F');
+                return y + 10;
+            }
+            function divider(y) {
+                doc.setFillColor(...C.g200);
+                doc.rect(M, y, CW, 0.4, 'F');
+                return y + 6;
+            }
+
+            // ── Page 1 header band ─────────────────────────────────────────────────
+            doc.setFillColor(...C.navy);
+            doc.rect(0, 0, W, 44, 'F');
+
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...C.white);
+            doc.text('Contract Risk Analysis', M, 19);
+
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(180, 200, 218);
+            doc.text('Ameresco Contract Risk Analyser  \u2022  ' + analysisResults.date, M, 29);
+            doc.text('Analysis type: ' + tierLabel(analysisResults.tier), M, 37);
+
+            // Risk badge
+            const rc = riskRgb(analysisResults.overallRisk);
+            doc.setFillColor(...rc);
+            doc.rect(W - M - 38, 11, 38, 13, 'F');
+            doc.setFontSize(8.5);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...C.white);
+            doc.text(analysisResults.overallRisk.toUpperCase() + ' RISK',
+                W - M - 19, 19.5, { align: 'center' });
+
+            let y = 54;
+
+            // Document info bar
+            doc.setFillColor(...C.g100);
+            doc.rect(M, y, CW, 21, 'F');
+            doc.setFontSize(7.5);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...C.slateL);
+            doc.text('DOCUMENT', M + 4, y + 8);
+            doc.text('OVERALL RISK', M + 100, y + 8);
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(...C.navy);
+            const shortName = analysisResults.fileName.length > 48
+                ? analysisResults.fileName.substring(0, 45) + '...'
+                : analysisResults.fileName;
+            doc.text(shortName, M + 4, y + 16);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...rc);
+            doc.text(analysisResults.overallRisk, M + 100, y + 16);
+            if (analysisResults.overallJustification) {
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(...C.slateL);
+                const jLines = doc.splitTextToSize(analysisResults.overallJustification, 66);
+                doc.text(jLines[0] || '', M + 118, y + 16);
+            }
+            y += 30;
+
+            // ── Executive Summary ──────────────────────────────────────────────────
+            y = sectionHead('Executive Summary', y);
+            doc.setFontSize(9.5);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(...C.slate);
+            y = writePara(analysisResults.executiveSummary, M, y, CW);
+            y += 4;
+
+            // ── Key Risks ──────────────────────────────────────────────────────────
+            if (analysisResults.topRisks && analysisResults.topRisks.length > 0) {
+                y = sectionHead('Key Risks Identified', y);
+
+                for (const risk of analysisResults.topRisks) {
+                    y = chk(y, 24);
+                    const rc2 = riskRgb(risk.level);
+
+                    // Left colour bar
+                    doc.setFillColor(...rc2);
+                    const barStart = y - 4;
+
+                    // Risk title row
+                    doc.setFontSize(9.5);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...C.navy);
+                    doc.text(String(risk.title || ''), M + 5, y + 2);
+
+                    doc.setFontSize(7.5);
+                    doc.setTextColor(...rc2);
+                    doc.text((risk.level || '').toUpperCase() + ' RISK',
+                        W - M, y + 2, { align: 'right' });
+                    y += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor(...C.slate);
+                    y = writePara(risk.description, M + 5, y, CW - 5);
+
+                    if (risk.amerescoImplication) {
+                        doc.setFont(undefined, 'italic');
+                        doc.setFontSize(8.5);
+                        doc.setTextColor(...C.slateL);
+                        y = chk(y, 6);
+                        y = writePara('For Ameresco: ' + risk.amerescoImplication,
+                            M + 5, y, CW - 5, 5);
+                        doc.setFont(undefined, 'normal');
+                    }
+
+                    // Draw left bar retroactively
+                    doc.setFillColor(...rc2);
+                    doc.rect(M, barStart, 1.8, y - barStart, 'F');
+
+                    y = divider(y + 1);
+                }
+            }
+
+            // ── Clause Breakdown ───────────────────────────────────────────────────
+            if (analysisResults.clauseBreakdown && analysisResults.clauseBreakdown.length > 0) {
+                y = sectionHead('Clause Breakdown', y);
+                const colW = (CW - 4) / 2;
+
+                for (const cl of analysisResults.clauseBreakdown) {
+                    y = chk(y, 30);
+
+                    doc.setFontSize(8.5);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...C.navy);
+                    doc.text(String(cl.clauseRef || '').toUpperCase(), M, y);
+                    y += 6;
+
+                    if (cl.keyText) {
+                        const qtLines = doc.splitTextToSize(
+                            '\u201c' + cl.keyText + '\u201d', CW - 8);
+                        const qtH = qtLines.length * 4.5 + 6;
+                        y = chk(y, qtH);
+                        doc.setFillColor(...C.g100);
+                        doc.rect(M, y - 3.5, CW, qtH, 'F');
+                        doc.setFillColor(...C.amber);
+                        doc.rect(M, y - 3.5, 1.5, qtH, 'F');
+                        doc.setFont(undefined, 'italic');
+                        doc.setFontSize(8.5);
+                        doc.setTextColor(...C.slateL);
+                        for (const ql of qtLines) {
+                            y = chk(y, 5);
+                            doc.text(ql, M + 5, y);
+                            y += 4.5;
+                        }
+                        y += 3;
+                    }
+
+                    // Two-col meaning | risk
+                    doc.setFontSize(7.5);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...C.slateL);
+                    doc.text('WHAT IT MEANS', M, y);
+                    doc.text('RISK FOR AMERESCO', M + colW + 4, y);
+                    y += 5;
+
+                    const mLines = doc.splitTextToSize(cl.meaning || '', colW);
+                    const rLines = doc.splitTextToSize(cl.risk || '', colW);
+                    const maxL = Math.max(mLines.length, rLines.length);
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor(...C.slate);
+                    for (let i = 0; i < maxL; i++) {
+                        y = chk(y, 5);
+                        if (mLines[i]) doc.text(mLines[i], M, y);
+                        if (rLines[i]) doc.text(rLines[i], M + colW + 4, y);
+                        y += 4.8;
+                    }
+
+                    y = divider(y + 2);
+                }
+            }
+
+            // ── Missing Clauses ────────────────────────────────────────────────────
+            if (analysisResults.missingClauses && analysisResults.missingClauses.length > 0) {
+                y = sectionHead('Missing or Absent Clauses', y);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(...C.slate);
+                for (const item of analysisResults.missingClauses) {
+                    y = chk(y, 10);
+                    doc.setFillColor(...C.amber);
+                    doc.ellipse(M + 2, y - 0.8, 1, 1, 'F');
+                    y = writePara(String(item), M + 6, y, CW - 6);
+                    y += 1;
+                }
+                y += 4;
+            }
+
+            // ── Recommended Actions ────────────────────────────────────────────────
+            if (analysisResults.recommendedActions && analysisResults.recommendedActions.length > 0) {
+                y = sectionHead('Recommended Actions', y);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                for (const item of analysisResults.recommendedActions) {
+                    y = chk(y, 10);
+                    doc.setFontSize(11);
+                    doc.setTextColor(...C.amber);
+                    doc.text('\u2192', M + 1, y);
+                    doc.setFontSize(9);
+                    doc.setTextColor(...C.slate);
+                    y = writePara(String(item), M + 7, y, CW - 7);
+                    y += 1;
+                }
+                y += 4;
+            }
+
+            // ── Negotiation Points ─────────────────────────────────────────────────
+            if (analysisResults.negotiationPoints && analysisResults.negotiationPoints.length > 0) {
+                y = sectionHead('Negotiation Leverage Points', y);
+                for (const pt of analysisResults.negotiationPoints) {
+                    y = chk(y, 20);
+                    doc.setFontSize(9.5);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...C.navy);
+                    y = writePara(String(pt.point || ''), M + 3, y, CW - 3);
+                    if (pt.leverage) {
+                        doc.setFontSize(8.5);
+                        doc.setFont(undefined, 'normal');
+                        doc.setTextColor(...C.slateL);
+                        y = writePara('Leverage: ' + pt.leverage, M + 3, y, CW - 3, 4.8);
+                    }
+                    y = divider(y + 1);
+                }
+            }
+
+            footer();
+            doc.save('Ameresco_Contract_Risk_Analysis_' +
+                new Date().toISOString().split('T')[0] + '.pdf');
         }
 
+        // ─── Word Report ──────────────────────────────────────────────────────────
         function downloadWord() {
-            console.log('downloadWord() — implementation in Chunk 5');
+            if (!analysisResults) return;
+            if (!window.docx) { alert('Word library not loaded. Please refresh the page.'); return; }
+
+            const {
+                Document, Paragraph, TextRun, AlignmentType,
+                BorderStyle, Packer
+            } = window.docx;
+
+            // Hex colour constants
+            const NAVY  = '0F172A', SLATE  = '334155',
+                  SLATEL = '64748B', AMBER = 'F59E0B';
+            const riskHex = (lvl) =>
+                ({ high: 'DC2626', medium: 'F59E0B', low: '16A34A' })
+                [(lvl || 'medium').toLowerCase()] || 'F59E0B';
+
+            const children = [];
+
+            // ── Helpers ────────────────────────────────────────────────────────────
+            const run   = (text, opts) => new TextRun({ text: String(text || ''), ...opts });
+            const para  = (runs, opts) => new Paragraph({ children: Array.isArray(runs) ? runs : [runs], ...opts });
+            const body  = (text) => para(run(text, { color: SLATE, size: 20 }), { spacing: { after: 120 } });
+            const label = (text) => run(text, { bold: true, allCaps: true, color: SLATEL, size: 16 });
+
+            function secHead(title) {
+                return para(
+                    run(title, { bold: true, color: NAVY, size: 26 }),
+                    {
+                        spacing: { before: 400, after: 160 },
+                        border: {
+                            bottom: { color: AMBER, size: 12,
+                                style: BorderStyle.SINGLE, space: 4 }
+                        },
+                    }
+                );
+            }
+
+            // ── Title block ────────────────────────────────────────────────────────
+            children.push(
+                para(run('Contract Risk Analysis Report',
+                    { bold: true, color: NAVY, size: 44 }),
+                    { spacing: { after: 120 } }),
+                para([
+                    run('Ameresco Contract Risk Analyser', { color: SLATEL, size: 18 }),
+                    run('   \u2022   ', { color: SLATEL, size: 18 }),
+                    run(analysisResults.date, { color: SLATEL, size: 18 }),
+                    run('   \u2022   ', { color: SLATEL, size: 18 }),
+                    run(tierLabel(analysisResults.tier), { color: SLATEL, size: 18 }),
+                ], { spacing: { after: 80 } }),
+                para([
+                    run('Document: ', { bold: true, color: SLATE, size: 19 }),
+                    run(analysisResults.fileName, { color: SLATE, size: 19 }),
+                ], { spacing: { after: 80 } }),
+                para([
+                    run('Overall Risk: ', { bold: true, color: SLATE, size: 19 }),
+                    run(analysisResults.overallRisk, {
+                        bold: true, size: 22,
+                        color: riskHex(analysisResults.overallRisk)
+                    }),
+                    analysisResults.overallJustification
+                        ? run('  \u2014  ' + analysisResults.overallJustification,
+                            { color: SLATEL, size: 17 })
+                        : run(''),
+                ], { spacing: { after: 400 } }),
+            );
+
+            // ── Executive Summary ──────────────────────────────────────────────────
+            children.push(secHead('Executive Summary'));
+            (analysisResults.executiveSummary || '')
+                .split(/\n\n+/).filter(p => p.trim())
+                .forEach(p => children.push(body(p.trim())));
+
+            // ── Key Risks ──────────────────────────────────────────────────────────
+            if (analysisResults.topRisks && analysisResults.topRisks.length > 0) {
+                children.push(secHead('Key Risks Identified'));
+                for (const risk of analysisResults.topRisks) {
+                    const rhex = riskHex(risk.level);
+                    children.push(
+                        para([
+                            run(risk.title || '', { bold: true, color: NAVY, size: 22 }),
+                            run('     '),
+                            run((risk.level || '').toUpperCase() + ' RISK',
+                                { bold: true, color: rhex, size: 16 }),
+                        ], {
+                            spacing: { before: 240, after: 80 },
+                            border: {
+                                left: { color: rhex, size: 20,
+                                    style: BorderStyle.SINGLE, space: 8 }
+                            },
+                            indent: { left: 200 },
+                        }),
+                        para(run(risk.description || '', { color: SLATE, size: 20 }), {
+                            spacing: { after: 80 }, indent: { left: 200 }
+                        }),
+                    );
+                    if (risk.amerescoImplication) {
+                        children.push(para([
+                            run('For Ameresco: ', { bold: true, italics: true, color: SLATEL, size: 18 }),
+                            run(risk.amerescoImplication, { italics: true, color: SLATEL, size: 18 }),
+                        ], { spacing: { after: 240 }, indent: { left: 200 } }));
+                    }
+                }
+            }
+
+            // ── Clause Breakdown ───────────────────────────────────────────────────
+            if (analysisResults.clauseBreakdown && analysisResults.clauseBreakdown.length > 0) {
+                children.push(secHead('Clause Breakdown'));
+                for (const cl of analysisResults.clauseBreakdown) {
+                    children.push(
+                        para(run((cl.clauseRef || '').toUpperCase(),
+                            { bold: true, color: NAVY, size: 19, allCaps: true }),
+                            { spacing: { before: 240, after: 80 } }),
+                    );
+                    if (cl.keyText) {
+                        children.push(para([
+                            run('\u201c' + cl.keyText + '\u201d',
+                                { italics: true, color: SLATEL, size: 18 }),
+                        ], {
+                            spacing: { after: 80 },
+                            indent: { left: 280 },
+                            border: {
+                                left: { color: AMBER, size: 12,
+                                    style: BorderStyle.SINGLE, space: 8 }
+                            },
+                        }));
+                    }
+                    children.push(
+                        para([
+                            label('What it means:  '),
+                            run(cl.meaning || '', { color: SLATE, size: 19 }),
+                        ], { spacing: { after: 80 }, indent: { left: 200 } }),
+                        para([
+                            label('Risk for Ameresco:  '),
+                            run(cl.risk || '', { color: SLATE, size: 19 }),
+                        ], { spacing: { after: 200 }, indent: { left: 200 } }),
+                    );
+                }
+            }
+
+            // ── Missing Clauses ────────────────────────────────────────────────────
+            if (analysisResults.missingClauses && analysisResults.missingClauses.length > 0) {
+                children.push(secHead('Missing or Absent Clauses'));
+                for (const item of analysisResults.missingClauses) {
+                    children.push(para([
+                        run('\u26A0  ', { color: AMBER, size: 20 }),
+                        run(String(item), { color: SLATE, size: 20 }),
+                    ], { spacing: { after: 120 }, indent: { left: 200 } }));
+                }
+            }
+
+            // ── Recommended Actions ────────────────────────────────────────────────
+            if (analysisResults.recommendedActions && analysisResults.recommendedActions.length > 0) {
+                children.push(secHead('Recommended Actions'));
+                for (const item of analysisResults.recommendedActions) {
+                    children.push(para([
+                        run('\u2192  ', { bold: true, color: AMBER, size: 20 }),
+                        run(String(item), { color: SLATE, size: 20 }),
+                    ], { spacing: { after: 120 }, indent: { left: 200 } }));
+                }
+            }
+
+            // ── Negotiation Points ─────────────────────────────────────────────────
+            if (analysisResults.negotiationPoints && analysisResults.negotiationPoints.length > 0) {
+                children.push(secHead('Negotiation Leverage Points'));
+                for (const pt of analysisResults.negotiationPoints) {
+                    children.push(
+                        para(run(pt.point || '', { bold: true, color: NAVY, size: 21 }), {
+                            spacing: { before: 200, after: 60 }, indent: { left: 200 }
+                        }),
+                        para([
+                            label('Leverage:  '),
+                            run(pt.leverage || '', { color: SLATE, size: 19 }),
+                        ], { spacing: { after: 240 }, indent: { left: 200 } }),
+                    );
+                }
+            }
+
+            // ── Disclaimer ─────────────────────────────────────────────────────────
+            children.push(
+                para('', { spacing: { before: 560 } }),
+                para(run(
+                    'Confidential \u2022 Internal Use Only \u2022 Not Legal Advice',
+                    { italics: true, color: SLATEL, size: 16 }
+                ), { alignment: AlignmentType.CENTER }),
+            );
+
+            const wordDoc = new Document({
+                sections: [{ properties: {}, children }],
+            });
+
+            Packer.toBlob(wordDoc).then(blob => {
+                saveAs(blob,
+                    'Ameresco_Contract_Risk_Analysis_' +
+                    new Date().toISOString().split('T')[0] + '.docx');
+            }).catch(err => {
+                console.error('Word export error:', err);
+                alert('Could not generate Word document: ' + err.message);
+            });
         }
 
         // ─── New Analysis ─────────────────────────────────────────────────────────

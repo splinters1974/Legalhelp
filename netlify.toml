@@ -1,0 +1,16 @@
+[build]
+  publish = "."
+
+# Security headers applied to all pages
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    # CSP allows:
+    #   - scripts from self + cdnjs (PDF.js, Mammoth, jsPDF, docx.js, FileSaver)
+    #   - styles from self (inline styles used throughout)
+    #   - connections to Anthropic API only
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com; font-src 'self'; img-src 'self' data:; object-src 'none'"

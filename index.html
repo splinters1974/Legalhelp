@@ -670,6 +670,109 @@
             line-height: 1.7;
         }
 
+        /* Q&A Section */
+        .qa-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .qa-section h3 {
+            margin-bottom: 0.5rem;
+            color: var(--navy-primary);
+        }
+
+        .qa-privacy-note {
+            font-size: 0.8rem;
+            color: var(--slate-light);
+            margin-bottom: 1.25rem;
+            font-style: italic;
+        }
+
+        .qa-thread {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .qa-item {
+            border-left: 3px solid var(--amber-accent);
+            padding-left: 1rem;
+        }
+
+        .qa-question {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--navy-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .qa-answer {
+            font-size: 0.95rem;
+            color: var(--slate-primary);
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        .qa-disclaimer {
+            font-size: 0.75rem;
+            color: var(--slate-light);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        .qa-input-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .qa-textarea {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 70px;
+            transition: border-color 0.2s;
+            line-height: 1.5;
+        }
+
+        .qa-textarea:focus {
+            outline: none;
+            border-color: var(--amber-accent);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .qa-ask-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--amber-accent);
+            color: var(--navy-primary);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .qa-ask-btn:hover:not(:disabled) {
+            background: var(--amber-light);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .qa-ask-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* Loading State */
         .loading-overlay {
             display: none;
@@ -1416,6 +1519,21 @@
                 <!-- Detailed content inserted by JS -->
             </div>
 
+            <!-- Follow-up Q&A -->
+            <div class="qa-section" id="qaSection" style="display:none;">
+                <h3>Ask a Question About This Contract</h3>
+                <p class="qa-privacy-note">&#9888; Questions are sent to Anthropic alongside the contract text. Do not include internal commercial context not already in the document.</p>
+                <div class="qa-thread" id="qaThread"></div>
+                <div class="qa-input-row">
+                    <textarea id="qaInput" class="qa-textarea"
+                        placeholder='e.g. "What happens if we are late delivering?" or "Can the client terminate without cause?"'
+                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askQuestion();}"
+                    ></textarea>
+                    <button class="qa-ask-btn" id="qaAskBtn" onclick="askQuestion()">Ask</button>
+                </div>
+                <div id="qaError" class="error-banner hidden" role="alert" style="margin-top:0.75rem;"></div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="downloadPDF()">
@@ -1452,6 +1570,9 @@
         // ─── Configuration ────────────────────────────────────────────────────────
         // SITE_API_KEY is defined in config.js (loaded in <head>)
         // ─── State ────────────────────────────────────────────────────────────────
+        // Set to true to enable the follow-up Q&A feature
+        const QA_ENABLED = false;
+
         let apiKey = localStorage.getItem('ameresco_api_key') || SITE_API_KEY;
         let currentFile = null;
         let selectedTier = 'medium';
@@ -2346,6 +2467,12 @@ Rules:
             const section = document.getElementById('resultsSection');
             section.classList.add('show', 'fade-in');
             section.scrollIntoView({ behavior: 'smooth' });
+
+            // 7. Show Q&A only when feature flag is enabled and a real contract is loaded
+            document.getElementById('qaSection').style.display = (QA_ENABLED && contractText) ? 'block' : 'none';
+            document.getElementById('qaThread').innerHTML = '';
+            document.getElementById('qaInput').value = '';
+            clearError('qaError');
         }
 
         // ─── Render Risk Cards ────────────────────────────────────────────────────
@@ -2480,6 +2607,95 @@ Rules:
             <div class="analysis-section escalation-section">
                 <h3>Legal Escalation Advice</h3>
                 <div class="escalation-body">${escHtml(advice)}</div>
+            </div>`;
+        }
+
+        // ─── Follow-up Q&A ────────────────────────────────────────────────────────
+        async function askQuestion() {
+            const question = (document.getElementById('qaInput').value || '').trim();
+            if (!question) return;
+
+            clearError('qaError');
+
+            if (!contractText) {
+                showError('qaError', 'Q&A is not available in demo mode — run a real analysis first.');
+                return;
+            }
+
+            const btn = document.getElementById('qaAskBtn');
+            btn.disabled = true;
+            btn.textContent = 'Thinking\u2026';
+
+            try {
+                const answer = await callQAAPI(question);
+                const thread = document.getElementById('qaThread');
+                const item = document.createElement('div');
+                item.innerHTML = renderQAItem(question, answer);
+                thread.appendChild(item);
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                document.getElementById('qaInput').value = '';
+            } catch (err) {
+                showError('qaError', err.message || 'Something went wrong. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Ask';
+            }
+        }
+
+        async function callQAAPI(question) {
+            const jurDisplay = { 'england-wales': 'England & Wales', 'scotland': 'Scotland', 'northern-ireland': 'Northern Ireland' };
+            const jurStr = jurDisplay[analysisResults.jurisdiction] || 'England & Wales';
+            const topRiskTitles = (analysisResults.topRisks || []).map(r => r.title).filter(Boolean).join(', ');
+
+            const qaSystemPrompt = `You are helping a commercial manager at Ameresco understand a specific aspect of a contract that has already been analysed. Answer the question directly and concisely based on the contract text provided. Cite specific clause numbers or headings where relevant. If the contract does not address the question, say so clearly and note whether UK law (${jurStr}) provides any default position. If a definitive answer requires qualified legal advice, say so in one sentence — do not refuse to engage. Keep answers under 250 words unless the question genuinely requires more detail. Plain English only — no jargon without explanation.`;
+
+            const userMessage =
+                `JURISDICTION: ${jurStr}\n` +
+                `OVERALL RISK: ${analysisResults.overallRisk || 'Unknown'}\n` +
+                `TOP RISKS IDENTIFIED: ${topRiskTitles || 'None'}\n\n` +
+                `QUESTION: ${question}\n\n` +
+                `CONTRACT TEXT:\n\n${contractText}`;
+
+            let response;
+            try {
+                response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1024,
+                        system: qaSystemPrompt,
+                        messages: [{ role: 'user', content: userMessage }]
+                    })
+                });
+            } catch (networkErr) {
+                throw new Error('Network error — check your internet connection and try again.');
+            }
+
+            if (!response.ok) {
+                let errMsg;
+                try { const d = await response.json(); errMsg = d.error?.message || response.statusText; }
+                catch { errMsg = response.statusText; }
+                if (response.status === 401) throw new Error('Invalid API key. Please update it via the Admin panel.');
+                if (response.status === 429) throw new Error('Rate limit reached. Wait a moment and try again.');
+                throw new Error(`API error (${response.status}): ${errMsg}`);
+            }
+
+            const data = await response.json();
+            return data.content[0].text;
+        }
+
+        function renderQAItem(question, answer) {
+            return `
+            <div class="qa-item">
+                <div class="qa-question">Q: ${escHtml(question)}</div>
+                <div class="qa-answer">${escHtml(answer)}</div>
+                <div class="qa-disclaimer">This is not legal advice. Verify important points with a qualified solicitor before acting.</div>
             </div>`;
         }
 
@@ -2826,244 +3042,274 @@ Rules:
                 return;
             }
 
-            const {
-                Document, Paragraph, TextRun, ImageRun, AlignmentType,
-                BorderStyle, Packer
-            } = window.docx;
-
-            // Hex colour constants
-            const NAVY  = '0F172A', SLATE  = '334155',
-                  SLATEL = '64748B', AMBER = 'F59E0B';
-            const riskHex = (lvl) =>
-                ({ high: 'DC2626', medium: 'F59E0B', low: '16A34A' })
-                [(lvl || 'medium').toLowerCase()] || 'F59E0B';
-
-            const children = [];
-
-            // ── Logo ───────────────────────────────────────────────────────────────
-            let logoArrayBuffer = null;
             try {
-                const b64 = LOGO_DATA_URI.split(',')[1];
-                const bin = atob(b64);
-                const arr = new Uint8Array(bin.length);
-                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-                logoArrayBuffer = arr.buffer;
-            } catch { /* proceed without logo */ }
+                const {
+                    Document, Paragraph, TextRun, ImageRun, AlignmentType,
+                    BorderStyle, Packer
+                } = window.docx;
 
-            // ── Helpers ────────────────────────────────────────────────────────────
-            const run   = (text, opts) => new TextRun({ text: String(text || ''), ...opts });
-            const para  = (runs, opts) => new Paragraph({ children: Array.isArray(runs) ? runs : [runs], ...opts });
-            const body  = (text) => para(run(text, { color: SLATE, size: 20 }), { spacing: { after: 120 } });
-            const label = (text) => run(text, { bold: true, allCaps: true, color: SLATEL, size: 16 });
+                // Hex colour constants
+                const NAVY  = '0F172A', SLATE  = '334155',
+                      SLATEL = '64748B', AMBER = 'F59E0B';
+                const riskHex = (lvl) =>
+                    ({ high: 'DC2626', medium: 'F59E0B', low: '16A34A' })
+                    [(lvl || 'medium').toLowerCase()] || 'F59E0B';
 
-            function secHead(title) {
-                return para(
-                    run(title, { bold: true, color: NAVY, size: 26 }),
-                    {
-                        spacing: { before: 400, after: 160 },
-                        border: {
-                            bottom: { color: AMBER, size: 12,
-                                style: BorderStyle.SINGLE, space: 4 }
-                        },
-                    }
+                const children = [];
+
+                // ── Logo ───────────────────────────────────────────────────────────────
+                let logoArrayBuffer = null;
+                try {
+                    const b64 = LOGO_DATA_URI.split(',')[1];
+                    const bin = atob(b64);
+                    const arr = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                    logoArrayBuffer = arr.buffer;
+                } catch { /* proceed without logo */ }
+
+                // ── Helpers ────────────────────────────────────────────────────────────
+                const run   = (text, opts) => new TextRun({ text: String(text || ''), ...opts });
+                const para  = (runs, opts) => new Paragraph({ children: Array.isArray(runs) ? runs : [runs], ...opts });
+                const body  = (text) => para(run(text, { color: SLATE, size: 20 }), { spacing: { after: 120 } });
+                const label = (text) => run(text, { bold: true, allCaps: true, color: SLATEL, size: 16 });
+
+                function secHead(title) {
+                    return para(
+                        run(title, { bold: true, color: NAVY, size: 26 }),
+                        {
+                            spacing: { before: 400, after: 160 },
+                            border: {
+                                bottom: { color: AMBER, size: 12,
+                                    style: BorderStyle.SINGLE, space: 4 }
+                            },
+                        }
+                    );
+                }
+
+                // ── Logo block ─────────────────────────────────────────────────────────
+                if (logoArrayBuffer) {
+                    children.push(new Paragraph({
+                        children: [new ImageRun({
+                            data: logoArrayBuffer,
+                            transformation: { width: 220, height: 101 },
+                            type: 'png',
+                        })],
+                        spacing: { after: 200 },
+                    }));
+                }
+
+                // ── Title block ────────────────────────────────────────────────────────
+                const jurDisplay = { 'england-wales': 'England & Wales', 'scotland': 'Scotland', 'northern-ireland': 'Northern Ireland' };
+                const jurStr = jurDisplay[analysisResults.jurisdiction] || 'England & Wales';
+                children.push(
+                    para(run('Contract Risk Analysis Report',
+                        { bold: true, color: NAVY, size: 44 }),
+                        { spacing: { after: 120 } }),
+                    para([
+                        run('Ameresco Contract Risk Analyser', { color: SLATEL, size: 18 }),
+                        run('   \u2022   ', { color: SLATEL, size: 18 }),
+                        run(analysisResults.date, { color: SLATEL, size: 18 }),
+                        run('   \u2022   ', { color: SLATEL, size: 18 }),
+                        run(tierLabel(analysisResults.tier), { color: SLATEL, size: 18 }),
+                        run('   \u2022   ', { color: SLATEL, size: 18 }),
+                        run(jurStr, { color: SLATEL, size: 18 }),
+                    ], { spacing: { after: 80 } }),
+                    para([
+                        run('Document: ', { bold: true, color: SLATE, size: 19 }),
+                        run(analysisResults.fileName, { color: SLATE, size: 19 }),
+                    ], { spacing: { after: 80 } }),
+                    para([
+                        run('Overall Risk: ', { bold: true, color: SLATE, size: 19 }),
+                        run(analysisResults.overallRisk, {
+                            bold: true, size: 22,
+                            color: riskHex(analysisResults.overallRisk)
+                        }),
+                        analysisResults.overallJustification
+                            ? run('  \u2014  ' + analysisResults.overallJustification,
+                                { color: SLATEL, size: 17 })
+                            : run(''),
+                    ], { spacing: { after: 400 } }),
                 );
-            }
 
-            // ── Logo block ─────────────────────────────────────────────────────────
-            if (logoArrayBuffer) {
-                // 2.18:1 ratio — 180pt wide = ~82.6pt tall
-                children.push(new Paragraph({
-                    children: [new ImageRun({
-                        data: logoArrayBuffer,
-                        transformation: { width: 220, height: 101 },
-                        type: 'png',
-                    })],
-                    spacing: { after: 200 },
-                }));
-            }
+                // ── Executive Summary ──────────────────────────────────────────────────
+                children.push(secHead('Executive Summary'));
+                (analysisResults.executiveSummary || '')
+                    .split(/\n\n+/).filter(p => p.trim())
+                    .forEach(p => children.push(body(p.trim())));
 
-            // ── Title block ────────────────────────────────────────────────────────
-            children.push(
-                para(run('Contract Risk Analysis Report',
-                    { bold: true, color: NAVY, size: 44 }),
-                    { spacing: { after: 120 } }),
-                para([
-                    run('Ameresco Contract Risk Analyser', { color: SLATEL, size: 18 }),
-                    run('   \u2022   ', { color: SLATEL, size: 18 }),
-                    run(analysisResults.date, { color: SLATEL, size: 18 }),
-                    run('   \u2022   ', { color: SLATEL, size: 18 }),
-                    run(tierLabel(analysisResults.tier), { color: SLATEL, size: 18 }),
-                ], { spacing: { after: 80 } }),
-                para([
-                    run('Document: ', { bold: true, color: SLATE, size: 19 }),
-                    run(analysisResults.fileName, { color: SLATE, size: 19 }),
-                ], { spacing: { after: 80 } }),
-                para([
-                    run('Overall Risk: ', { bold: true, color: SLATE, size: 19 }),
-                    run(analysisResults.overallRisk, {
-                        bold: true, size: 22,
-                        color: riskHex(analysisResults.overallRisk)
-                    }),
-                    analysisResults.overallJustification
-                        ? run('  \u2014  ' + analysisResults.overallJustification,
-                            { color: SLATEL, size: 17 })
-                        : run(''),
-                ], { spacing: { after: 400 } }),
-            );
+                // ── Key Risks ──────────────────────────────────────────────────────────
+                if (analysisResults.topRisks && analysisResults.topRisks.length > 0) {
+                    children.push(secHead('Key Risks Identified'));
+                    for (const risk of analysisResults.topRisks) {
+                        const rhex = riskHex(risk.level);
+                        children.push(
+                            para([
+                                run(risk.title || '', { bold: true, color: NAVY, size: 22 }),
+                                run('     '),
+                                run((risk.level || '').toUpperCase() + ' RISK',
+                                    { bold: true, color: rhex, size: 16 }),
+                            ], {
+                                spacing: { before: 240, after: 80 },
+                                border: {
+                                    left: { color: rhex, size: 20,
+                                        style: BorderStyle.SINGLE, space: 8 }
+                                },
+                                indent: { left: 200 },
+                            }),
+                            para(run(risk.description || '', { color: SLATE, size: 20 }), {
+                                spacing: { after: 80 }, indent: { left: 200 }
+                            }),
+                        );
+                        if (risk.amerescoImplication) {
+                            children.push(para([
+                                run('For Ameresco: ', { bold: true, italics: true, color: SLATEL, size: 18 }),
+                                run(risk.amerescoImplication, { italics: true, color: SLATEL, size: 18 }),
+                            ], { spacing: { after: 240 }, indent: { left: 200 } }));
+                        }
+                    }
+                }
 
-            // ── Executive Summary ──────────────────────────────────────────────────
-            children.push(secHead('Executive Summary'));
-            (analysisResults.executiveSummary || '')
-                .split(/\n\n+/).filter(p => p.trim())
-                .forEach(p => children.push(body(p.trim())));
-
-            // ── Key Risks ──────────────────────────────────────────────────────────
-            if (analysisResults.topRisks && analysisResults.topRisks.length > 0) {
-                children.push(secHead('Key Risks Identified'));
-                for (const risk of analysisResults.topRisks) {
-                    const rhex = riskHex(risk.level);
-                    children.push(
-                        para([
-                            run(risk.title || '', { bold: true, color: NAVY, size: 22 }),
-                            run('     '),
-                            run((risk.level || '').toUpperCase() + ' RISK',
-                                { bold: true, color: rhex, size: 16 }),
-                        ], {
-                            spacing: { before: 240, after: 80 },
-                            border: {
-                                left: { color: rhex, size: 20,
-                                    style: BorderStyle.SINGLE, space: 8 }
-                            },
-                            indent: { left: 200 },
-                        }),
-                        para(run(risk.description || '', { color: SLATE, size: 20 }), {
-                            spacing: { after: 80 }, indent: { left: 200 }
-                        }),
-                    );
-                    if (risk.amerescoImplication) {
+                // ── Statutory Flags (Light Touch) ──────────────────────────────────────
+                if (analysisResults.statutoryFlags && analysisResults.statutoryFlags.length > 0) {
+                    children.push(secHead('UK Statutory Considerations'));
+                    for (const flag of analysisResults.statutoryFlags) {
                         children.push(para([
-                            run('For Ameresco: ', { bold: true, italics: true, color: SLATEL, size: 18 }),
-                            run(risk.amerescoImplication, { italics: true, color: SLATEL, size: 18 }),
-                        ], { spacing: { after: 240 }, indent: { left: 200 } }));
+                            run('\u2696  ', { color: AMBER, bold: true, size: 20 }),
+                            run(String(flag), { color: SLATE, size: 19 }),
+                        ], { spacing: { after: 120 }, indent: { left: 200 } }));
                     }
                 }
-            }
 
-            // ── Clause Breakdown ───────────────────────────────────────────────────
-            if (analysisResults.clauseBreakdown && analysisResults.clauseBreakdown.length > 0) {
-                children.push(secHead('Clause Breakdown'));
-                for (const cl of analysisResults.clauseBreakdown) {
-                    children.push(
-                        para(run((cl.clauseRef || '').toUpperCase(),
-                            { bold: true, color: NAVY, size: 19, allCaps: true }),
-                            { spacing: { before: 240, after: 80 } }),
-                    );
-                    if (cl.keyText) {
+                // ── Clause Breakdown ───────────────────────────────────────────────────
+                if (analysisResults.clauseBreakdown && analysisResults.clauseBreakdown.length > 0) {
+                    children.push(secHead('Clause Breakdown'));
+                    for (const cl of analysisResults.clauseBreakdown) {
+                        children.push(
+                            para(run((cl.clauseRef || '').toUpperCase(),
+                                { bold: true, color: NAVY, size: 19, allCaps: true }),
+                                { spacing: { before: 240, after: 80 } }),
+                        );
+                        if (cl.keyText) {
+                            children.push(para([
+                                run('\u201c' + cl.keyText + '\u201d',
+                                    { italics: true, color: SLATEL, size: 18 }),
+                            ], {
+                                spacing: { after: 80 },
+                                indent: { left: 280 },
+                                border: {
+                                    left: { color: AMBER, size: 12,
+                                        style: BorderStyle.SINGLE, space: 8 }
+                                },
+                            }));
+                        }
+                        children.push(
+                            para([
+                                label('What it means:  '),
+                                run(cl.meaning || '', { color: SLATE, size: 19 }),
+                            ], { spacing: { after: 80 }, indent: { left: 200 } }),
+                            para([
+                                label('Risk for Ameresco:  '),
+                                run(cl.risk || '', { color: SLATE, size: 19 }),
+                            ], { spacing: { after: cl.statutoryNote ? 60 : 200 }, indent: { left: 200 } }),
+                        );
+                        if (cl.statutoryNote) {
+                            children.push(para([
+                                label('UK Law:  '),
+                                run(cl.statutoryNote, { color: '78350f', size: 18, italics: true }),
+                            ], { spacing: { after: 200 }, indent: { left: 200 } }));
+                        }
+                    }
+                }
+
+                // ── Missing Clauses ────────────────────────────────────────────────────
+                if (analysisResults.missingClauses && analysisResults.missingClauses.length > 0) {
+                    children.push(secHead('Missing or Absent Clauses'));
+                    for (const item of analysisResults.missingClauses) {
+                        const desc = typeof item === 'string' ? item : (item.description || '');
+                        const lawNote = typeof item === 'object' ? (item.ukLawNote || '') : '';
                         children.push(para([
-                            run('\u201c' + cl.keyText + '\u201d',
-                                { italics: true, color: SLATEL, size: 18 }),
-                        ], {
-                            spacing: { after: 80 },
-                            indent: { left: 280 },
-                            border: {
-                                left: { color: AMBER, size: 12,
-                                    style: BorderStyle.SINGLE, space: 8 }
-                            },
-                        }));
-                    }
-                    children.push(
-                        para([
-                            label('What it means:  '),
-                            run(cl.meaning || '', { color: SLATE, size: 19 }),
-                        ], { spacing: { after: 80 }, indent: { left: 200 } }),
-                        para([
-                            label('Risk for Ameresco:  '),
-                            run(cl.risk || '', { color: SLATE, size: 19 }),
-                        ], { spacing: { after: 200 }, indent: { left: 200 } }),
-                    );
-                }
-            }
-
-            // ── Missing Clauses ────────────────────────────────────────────────────
-            if (analysisResults.missingClauses && analysisResults.missingClauses.length > 0) {
-                children.push(secHead('Missing or Absent Clauses'));
-                for (const item of analysisResults.missingClauses) {
-                    const clauseName = typeof item === 'string' ? item : (item.clause || '');
-                    const clauseDetail = typeof item === 'object' ? (item.consequence || '') : '';
-                    const importanceStr = typeof item === 'object' && item.importance
-                        ? ' [' + item.importance + ']' : '';
-                    children.push(para([
-                        run('\u26A0  ', { color: AMBER, size: 20, bold: true }),
-                        run(clauseName + importanceStr, { color: NAVY, size: 20, bold: true }),
-                    ], { spacing: { after: 60 }, indent: { left: 200 } }));
-                    if (clauseDetail) {
-                        children.push(para(
-                            run(clauseDetail, { color: SLATE, size: 19 }),
-                            { spacing: { after: 160 }, indent: { left: 360 } }
-                        ));
+                            run('\u26A0  ', { color: AMBER, size: 20, bold: true }),
+                            run(desc, { color: NAVY, size: 20, bold: true }),
+                        ], { spacing: { after: lawNote ? 60 : 160 }, indent: { left: 200 } }));
+                        if (lawNote) {
+                            children.push(para([
+                                label('UK law fallback:  '),
+                                run(lawNote, { color: SLATE, size: 19, italics: true }),
+                            ], { spacing: { after: 160 }, indent: { left: 360 } }));
+                        }
                     }
                 }
-            }
 
-            // ── Recommended Actions ────────────────────────────────────────────────
-            if (analysisResults.recommendedActions && analysisResults.recommendedActions.length > 0) {
-                children.push(secHead('Recommended Actions'));
-                for (const item of analysisResults.recommendedActions) {
-                    children.push(para([
-                        run('\u2192  ', { bold: true, color: AMBER, size: 20 }),
-                        run(String(item), { color: SLATE, size: 20 }),
-                    ], { spacing: { after: 120 }, indent: { left: 200 } }));
+                // ── Recommended Actions ────────────────────────────────────────────────
+                if (analysisResults.recommendedActions && analysisResults.recommendedActions.length > 0) {
+                    children.push(secHead('Recommended Actions'));
+                    for (const item of analysisResults.recommendedActions) {
+                        children.push(para([
+                            run('\u2192  ', { bold: true, color: AMBER, size: 20 }),
+                            run(String(item), { color: SLATE, size: 20 }),
+                        ], { spacing: { after: 120 }, indent: { left: 200 } }));
+                    }
                 }
-            }
 
-            // ── Negotiation Points ─────────────────────────────────────────────────
-            if (analysisResults.negotiationPoints && analysisResults.negotiationPoints.length > 0) {
-                children.push(secHead('Negotiation Leverage Points'));
-                for (const pt of analysisResults.negotiationPoints) {
-                    const detail = pt.leverage || pt.suggestedPosition || '';
-                    const priorityRuns = pt.priority ? [
-                        run(String(pt.priority).toUpperCase() + '  ', { bold: true, color: AMBER, size: 17 }),
-                    ] : [];
-                    children.push(
-                        para([...priorityRuns, run(pt.point || '', { bold: true, color: NAVY, size: 21 })], {
-                            spacing: { before: 200, after: 60 }, indent: { left: 200 }
-                        }),
-                        para([
-                            label('Position:  '),
-                            run(detail, { color: SLATE, size: 19 }),
-                        ], { spacing: { after: 240 }, indent: { left: 200 } }),
-                    );
+                // ── Negotiation Points ─────────────────────────────────────────────────
+                if (analysisResults.negotiationPoints && analysisResults.negotiationPoints.length > 0) {
+                    children.push(secHead('Negotiation Leverage Points'));
+                    for (const pt of analysisResults.negotiationPoints) {
+                        children.push(
+                            para(run(pt.point || '', { bold: true, color: NAVY, size: 21 }), {
+                                spacing: { before: 200, after: 60 }, indent: { left: 200 }
+                            }),
+                            para([
+                                label('Leverage:  '),
+                                run(pt.leverage || '', { color: SLATE, size: 19 }),
+                            ], { spacing: { after: pt.marketStandard ? 60 : 240 }, indent: { left: 200 } }),
+                        );
+                        if (pt.marketStandard) {
+                            children.push(para([
+                                label('Market standard:  '),
+                                run(pt.marketStandard, { color: SLATEL, size: 18, italics: true }),
+                            ], { spacing: { after: 240 }, indent: { left: 200 } }));
+                        }
+                    }
                 }
-            }
 
-            // ── Disclaimer ─────────────────────────────────────────────────────────
-            children.push(
-                para('', { spacing: { before: 560 } }),
-                para(run(
-                    'Confidential \u2022 Internal Use Only \u2022 Not Legal Advice',
-                    { italics: true, color: SLATEL, size: 16 }
-                ), { alignment: AlignmentType.CENTER }),
-            );
+                // ── Legal Escalation Advice ────────────────────────────────────────────
+                if (analysisResults.legalEscalationAdvice) {
+                    children.push(secHead('Legal Escalation Advice'));
+                    children.push(body(analysisResults.legalEscalationAdvice));
+                }
 
-            const wordDoc = new Document({
-                sections: [{ properties: {}, children }],
-            });
+                // ── Disclaimer ─────────────────────────────────────────────────────────
+                children.push(
+                    para('', { spacing: { before: 560 } }),
+                    para(run(
+                        'Confidential \u2022 Internal Use Only \u2022 Not Legal Advice',
+                        { italics: true, color: SLATEL, size: 16 }
+                    ), { alignment: AlignmentType.CENTER }),
+                );
 
-            Packer.toBlob(wordDoc).then(blob => {
+                const wordDoc = new Document({
+                    sections: [{ properties: {}, children }],
+                });
+
+                const blob = await Packer.toBlob(wordDoc);
                 saveAs(blob,
                     'Ameresco_Contract_Risk_Analysis_' +
                     new Date().toISOString().split('T')[0] + '.docx');
-            }).catch(err => {
+
+            } catch (err) {
                 console.error('Word export error:', err);
                 showError('downloadError',
-                    'Could not generate the Word document: ' + err.message);
-            });
+                    'Could not generate the Word document: ' + (err.message || err));
+            }
         }
 
         // ─── New Analysis ─────────────────────────────────────────────────────────
         function newAnalysis() {
             removeFile();
             document.getElementById('resultsSection').classList.remove('show');
+            document.getElementById('qaSection').style.display = 'none';
+            document.getElementById('qaThread').innerHTML = '';
             analysisResults = null;
             contractText = '';
             extractionMeta = null;

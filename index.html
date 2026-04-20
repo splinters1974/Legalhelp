@@ -670,6 +670,109 @@
             line-height: 1.7;
         }
 
+        /* Q&A Section */
+        .qa-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .qa-section h3 {
+            margin-bottom: 0.5rem;
+            color: var(--navy-primary);
+        }
+
+        .qa-privacy-note {
+            font-size: 0.8rem;
+            color: var(--slate-light);
+            margin-bottom: 1.25rem;
+            font-style: italic;
+        }
+
+        .qa-thread {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .qa-item {
+            border-left: 3px solid var(--amber-accent);
+            padding-left: 1rem;
+        }
+
+        .qa-question {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--navy-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .qa-answer {
+            font-size: 0.95rem;
+            color: var(--slate-primary);
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        .qa-disclaimer {
+            font-size: 0.75rem;
+            color: var(--slate-light);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        .qa-input-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .qa-textarea {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 70px;
+            transition: border-color 0.2s;
+            line-height: 1.5;
+        }
+
+        .qa-textarea:focus {
+            outline: none;
+            border-color: var(--amber-accent);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .qa-ask-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--amber-accent);
+            color: var(--navy-primary);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .qa-ask-btn:hover:not(:disabled) {
+            background: var(--amber-light);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .qa-ask-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* Loading State */
         .loading-overlay {
             display: none;
@@ -1414,6 +1517,21 @@
             <!-- Detailed Analysis -->
             <div class="analysis-content" id="detailedAnalysis">
                 <!-- Detailed content inserted by JS -->
+            </div>
+
+            <!-- Follow-up Q&A -->
+            <div class="qa-section" id="qaSection" style="display:none;">
+                <h3>Ask a Question About This Contract</h3>
+                <p class="qa-privacy-note">&#9888; Questions are sent to Anthropic alongside the contract text. Do not include internal commercial context not already in the document.</p>
+                <div class="qa-thread" id="qaThread"></div>
+                <div class="qa-input-row">
+                    <textarea id="qaInput" class="qa-textarea"
+                        placeholder='e.g. "What happens if we are late delivering?" or "Can the client terminate without cause?"'
+                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askQuestion();}"
+                    ></textarea>
+                    <button class="qa-ask-btn" id="qaAskBtn" onclick="askQuestion()">Ask</button>
+                </div>
+                <div id="qaError" class="error-banner hidden" role="alert" style="margin-top:0.75rem;"></div>
             </div>
 
             <!-- Action Buttons -->
@@ -2346,6 +2464,12 @@ Rules:
             const section = document.getElementById('resultsSection');
             section.classList.add('show', 'fade-in');
             section.scrollIntoView({ behavior: 'smooth' });
+
+            // 7. Show Q&A (hidden in demo mode where contractText is empty)
+            document.getElementById('qaSection').style.display = contractText ? 'block' : 'none';
+            document.getElementById('qaThread').innerHTML = '';
+            document.getElementById('qaInput').value = '';
+            clearError('qaError');
         }
 
         // ─── Render Risk Cards ────────────────────────────────────────────────────
@@ -2480,6 +2604,95 @@ Rules:
             <div class="analysis-section escalation-section">
                 <h3>Legal Escalation Advice</h3>
                 <div class="escalation-body">${escHtml(advice)}</div>
+            </div>`;
+        }
+
+        // ─── Follow-up Q&A ────────────────────────────────────────────────────────
+        async function askQuestion() {
+            const question = (document.getElementById('qaInput').value || '').trim();
+            if (!question) return;
+
+            clearError('qaError');
+
+            if (!contractText) {
+                showError('qaError', 'Q&A is not available in demo mode — run a real analysis first.');
+                return;
+            }
+
+            const btn = document.getElementById('qaAskBtn');
+            btn.disabled = true;
+            btn.textContent = 'Thinking\u2026';
+
+            try {
+                const answer = await callQAAPI(question);
+                const thread = document.getElementById('qaThread');
+                const item = document.createElement('div');
+                item.innerHTML = renderQAItem(question, answer);
+                thread.appendChild(item);
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                document.getElementById('qaInput').value = '';
+            } catch (err) {
+                showError('qaError', err.message || 'Something went wrong. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Ask';
+            }
+        }
+
+        async function callQAAPI(question) {
+            const jurDisplay = { 'england-wales': 'England & Wales', 'scotland': 'Scotland', 'northern-ireland': 'Northern Ireland' };
+            const jurStr = jurDisplay[analysisResults.jurisdiction] || 'England & Wales';
+            const topRiskTitles = (analysisResults.topRisks || []).map(r => r.title).filter(Boolean).join(', ');
+
+            const qaSystemPrompt = `You are helping a commercial manager at Ameresco understand a specific aspect of a contract that has already been analysed. Answer the question directly and concisely based on the contract text provided. Cite specific clause numbers or headings where relevant. If the contract does not address the question, say so clearly and note whether UK law (${jurStr}) provides any default position. If a definitive answer requires qualified legal advice, say so in one sentence — do not refuse to engage. Keep answers under 250 words unless the question genuinely requires more detail. Plain English only — no jargon without explanation.`;
+
+            const userMessage =
+                `JURISDICTION: ${jurStr}\n` +
+                `OVERALL RISK: ${analysisResults.overallRisk || 'Unknown'}\n` +
+                `TOP RISKS IDENTIFIED: ${topRiskTitles || 'None'}\n\n` +
+                `QUESTION: ${question}\n\n` +
+                `CONTRACT TEXT:\n\n${contractText}`;
+
+            let response;
+            try {
+                response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1024,
+                        system: qaSystemPrompt,
+                        messages: [{ role: 'user', content: userMessage }]
+                    })
+                });
+            } catch (networkErr) {
+                throw new Error('Network error — check your internet connection and try again.');
+            }
+
+            if (!response.ok) {
+                let errMsg;
+                try { const d = await response.json(); errMsg = d.error?.message || response.statusText; }
+                catch { errMsg = response.statusText; }
+                if (response.status === 401) throw new Error('Invalid API key. Please update it via the Admin panel.');
+                if (response.status === 429) throw new Error('Rate limit reached. Wait a moment and try again.');
+                throw new Error(`API error (${response.status}): ${errMsg}`);
+            }
+
+            const data = await response.json();
+            return data.content[0].text;
+        }
+
+        function renderQAItem(question, answer) {
+            return `
+            <div class="qa-item">
+                <div class="qa-question">Q: ${escHtml(question)}</div>
+                <div class="qa-answer">${escHtml(answer)}</div>
+                <div class="qa-disclaimer">This is not legal advice. Verify important points with a qualified solicitor before acting.</div>
             </div>`;
         }
 
@@ -3092,6 +3305,8 @@ Rules:
         function newAnalysis() {
             removeFile();
             document.getElementById('resultsSection').classList.remove('show');
+            document.getElementById('qaSection').style.display = 'none';
+            document.getElementById('qaThread').innerHTML = '';
             analysisResults = null;
             contractText = '';
             extractionMeta = null;

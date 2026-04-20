@@ -504,6 +504,172 @@
             color: var(--amber-accent);
         }
 
+        /* Jurisdiction Selector */
+        .jurisdiction-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .jurisdiction-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--navy-primary);
+            white-space: nowrap;
+        }
+
+        .jurisdiction-btns {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .jur-btn {
+            padding: 0.45rem 1.1rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 20px;
+            background: var(--white);
+            color: var(--slate-primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .jur-btn:hover {
+            border-color: var(--amber-accent);
+            color: var(--amber-accent);
+        }
+
+        .jur-btn.active {
+            background: var(--navy-primary);
+            border-color: var(--navy-primary);
+            color: var(--white);
+        }
+
+        .jur-note {
+            font-size: 0.8rem;
+            color: var(--slate-light);
+            margin-left: auto;
+        }
+
+        /* Statutory flags section (Light Touch) */
+        .statutory-flags {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-top: 0.5rem;
+        }
+
+        .statutory-flags h4 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #92400e;
+            margin-bottom: 0.6rem;
+        }
+
+        .statutory-flags ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .statutory-flags li {
+            font-size: 0.875rem;
+            color: #78350f;
+            padding-left: 1.1rem;
+            position: relative;
+        }
+
+        .statutory-flags li::before {
+            content: "⚖";
+            position: absolute;
+            left: 0;
+            font-size: 0.75rem;
+        }
+
+        /* Statutory note in clause breakdown */
+        .clause-statutory {
+            margin-top: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.8rem;
+            color: #78350f;
+        }
+
+        .clause-statutory strong {
+            font-weight: 600;
+        }
+
+        /* Missing clauses — High Touch objects */
+        .missing-item {
+            margin-bottom: 0.75rem;
+        }
+
+        .missing-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .missing-item-desc {
+            font-size: 0.9rem;
+            color: var(--navy-primary);
+        }
+
+        .missing-item-law {
+            margin-top: 0.3rem;
+            font-size: 0.8rem;
+            color: #78350f;
+            padding: 0.3rem 0.6rem;
+            background: #fffbeb;
+            border-radius: 4px;
+        }
+
+        /* Market standard in negotiation points */
+        .neg-market {
+            margin-top: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--slate-light);
+            font-style: italic;
+        }
+
+        .neg-market strong {
+            font-style: normal;
+            color: var(--slate-primary);
+        }
+
+        /* Legal escalation advice (High Touch) */
+        .escalation-section {
+            border: 2px solid var(--risk-high);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            background: #fff5f5;
+        }
+
+        .escalation-section h3 {
+            color: var(--risk-high);
+            margin-bottom: 0.75rem;
+        }
+
+        .escalation-body {
+            font-size: 0.95rem;
+            color: var(--navy-primary);
+            line-height: 1.7;
+        }
+
         /* Loading State */
         .loading-overlay {
             display: none;
@@ -1124,7 +1290,7 @@
                         <span class="tier-name">Light Touch</span>
                         <span class="tier-badge badge-light">Quick</span>
                     </div>
-                    <p class="tier-description">Perfect for a quick sense-check before a meeting or call. Get the essential risks at a glance.</p>
+                    <p class="tier-description">Perfect for a quick sense-check before a meeting or call. Get the essential risks at a glance, with any relevant UK statutes flagged.</p>
                     <div class="tier-features">
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -1132,11 +1298,11 @@
                         </div>
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Top 5 risks flagged with traffic light ratings
+                            Top 5 risks with traffic light ratings
                         </div>
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Overall document risk score
+                            UK statutory flags (e.g. Late Payment Act, UCTA)
                         </div>
                     </div>
                 </div>
@@ -1147,7 +1313,7 @@
                         <span class="tier-name">Medium Touch</span>
                         <span class="tier-badge badge-medium">Standard</span>
                     </div>
-                    <p class="tier-description">Detailed clause-by-clause breakdown explaining what each risk means for Ameresco in practice.</p>
+                    <p class="tier-description">Detailed clause-by-clause breakdown with UK law references and missing clause identification.</p>
                     <div class="tier-features">
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -1155,11 +1321,11 @@
                         </div>
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Clause-by-clause breakdown
+                            Clause breakdown with statutory notes
                         </div>
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Practical implications explained
+                            Missing clauses identified
                         </div>
                     </div>
                 </div>
@@ -1170,7 +1336,7 @@
                         <span class="tier-name">High Touch</span>
                         <span class="tier-badge badge-high">Comprehensive</span>
                     </div>
-                    <p class="tier-description">Full commercial scrutiny with recommendations and negotiation points before legal review.</p>
+                    <p class="tier-description">Full commercial scrutiny with UK law analysis, negotiation leverage, and explicit legal escalation advice.</p>
                     <div class="tier-features">
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -1178,15 +1344,26 @@
                         </div>
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Recommended actions &amp; questions for legal
+                            Negotiation points with market standard
                         </div>
                         <div class="tier-feature">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Negotiation leverage points
+                            Legal escalation advice
                         </div>
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- Jurisdiction Selector -->
+        <section class="jurisdiction-section">
+            <span class="jurisdiction-label">Governing Law</span>
+            <div class="jurisdiction-btns">
+                <button class="jur-btn active" id="jur-england" onclick="selectJurisdiction('england-wales')">England &amp; Wales</button>
+                <button class="jur-btn" id="jur-scotland" onclick="selectJurisdiction('scotland')">Scotland</button>
+                <button class="jur-btn" id="jur-ni" onclick="selectJurisdiction('northern-ireland')">Northern Ireland</button>
+            </div>
+            <span class="jur-note">Scottish and Northern Irish law have specific variations — select to apply jurisdiction-appropriate analysis.</span>
         </section>
 
         <!-- Analyse Button -->
@@ -1278,6 +1455,7 @@
         let apiKey = localStorage.getItem('ameresco_api_key') || SITE_API_KEY;
         let currentFile = null;
         let selectedTier = 'medium';
+        let selectedJurisdiction = 'england-wales';
         let analysisResults = null;
         let contractText = '';
         let extractionMeta = null;
@@ -1454,6 +1632,14 @@
         }
 
         // ─── Tier Selection ───────────────────────────────────────────────────────
+        function selectJurisdiction(jur) {
+            selectedJurisdiction = jur;
+            document.querySelectorAll('.jur-btn').forEach(b => b.classList.remove('active'));
+            const map = { 'england-wales': 'jur-england', 'scotland': 'jur-scotland', 'northern-ireland': 'jur-ni' };
+            const el = document.getElementById(map[jur]);
+            if (el) el.classList.add('active');
+        }
+
         function selectTier(tier) {
             selectedTier = tier;
             document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
@@ -1804,6 +1990,7 @@
                 analysisResults = {
                     ...parsed,
                     tier: selectedTier,
+                    jurisdiction: selectedJurisdiction,
                     fileName: currentFile.name,
                     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
                 };
@@ -1825,27 +2012,55 @@
         // ─── Claude API ───────────────────────────────────────────────────────────
 
         // System prompt — establishes persona for all tiers
-        const SYSTEM_PROMPT = `You are a senior commercial adviser helping Ameresco, an energy and infrastructure \
-company that works across public and private sector projects. Ameresco's contracts include JCT construction \
-contracts, PPAs (Power Purchase Agreements), energy supply agreements, NDAs, framework agreements, \
-service contracts, and subcontractor agreements.
+        const SYSTEM_PROMPT = `You are a senior commercial adviser helping Ameresco, an energy and infrastructure company that works across public and private sector projects in the United Kingdom. Ameresco's contracts include JCT construction contracts, PPAs (Power Purchase Agreements), energy supply agreements, NDAs, framework agreements, service contracts, and subcontractor agreements.
 
-Your role is to review contracts and explain risks in plain English to non-lawyers — typically sales \
-and commercial managers who need to understand what they are signing without legal training. Write as \
-a knowledgeable and direct commercial colleague, not as a lawyer. Explain what clauses mean in practice \
-for Ameresco, not just what they say. If you must use a legal term, explain it immediately in plain English.
+Your role is to review contracts under UK law and explain risks in plain English to non-lawyers — typically sales and commercial managers who need to understand what they are signing without legal training. Write as a knowledgeable and direct commercial colleague, not as a lawyer. Explain what clauses mean in practice for Ameresco, not just what they say. If you must use a legal term, explain it immediately in plain English.
 
-You will return your analysis as a single JSON object matching the schema provided. \
-Return ONLY the raw JSON — no markdown, no code fences, no commentary before or after. \
-Every string field must be plain text (no markdown formatting inside JSON values).`;
+You are familiar with the key UK statutes relevant to commercial contracts. When any of the following apply to the contract under review, name the act and explain plainly what it means for that specific clause or risk:
+- Late Payment of Commercial Debts (Interest) Act 1998 — statutory right to charge interest on overdue invoices at 8% above base rate; cannot generally be excluded in B2B contracts
+- Housing Grants, Construction and Regeneration Act 1996 (Construction Act) — applies to construction contracts; gives parties statutory rights to interim payments, payment notices, and adjudication; key protections cannot be excluded
+- Unfair Contract Terms Act 1977 (UCTA) — controls exclusion and limitation clauses in B2B contracts; terms must satisfy a reasonableness test; cannot exclude liability for negligence causing death or personal injury
+- Limitation Act 1980 (England & Wales) — claims for breach of contract must generally be brought within 6 years of the breach
+- Contracts (Rights of Third Parties) Act 1999 — third parties named or intended to benefit can enforce contract terms unless excluded; often excluded by a boilerplate clause
+- Supply of Goods and Services Act 1982 — implies terms that services will be carried out with reasonable care and skill, within a reasonable time, and at a reasonable charge if no price is fixed
+- Misrepresentation Act 1967 — remedies (rescission and/or damages) for pre-contract statements that induced the other party to sign
+- Consumer Rights Act 2015 — applies where one party is a consumer; rarely applies to Ameresco's B2B contracts but flag if relevant
+
+When the contract is governed by Scots law, note these key differences:
+- Prescription and Limitation (Scotland) Act 1973 — 5-year prescriptive period for most contract claims (not 6 years); this is a hard cut-off (prescription), not merely a procedural bar
+- Scottish Scheme for Construction Contracts applies in place of the England & Wales Scheme under the Construction Act
+- Jus quaesitum tertio — Scotland's equivalent of third-party rights; narrower than the 1999 Act
+- Contract (Scotland) Act 1997 — written terms prevail; no equivalent of the English parol evidence rule in the same form
+
+When the contract is governed by Northern Ireland law, note:
+- Limitation (Northern Ireland) Order 1989 — 6-year limitation period, broadly similar to England & Wales
+- Construction Contracts (Northern Ireland) Order 1997 — equivalent of the Construction Act for NI; same adjudication and payment rights apply
+- Broadly follows English law principles in most commercial contract areas
+
+You will return your analysis as a single JSON object matching the schema provided. Return ONLY the raw JSON — no markdown, no code fences, no commentary before or after. Every string field must be plain text (no markdown formatting inside JSON values).`;
 
         function buildPrompt(tier) {
+            const jurLabel = {
+                'england-wales': 'England & Wales',
+                'scotland': 'Scotland',
+                'northern-ireland': 'Northern Ireland'
+            }[selectedJurisdiction] || 'England & Wales';
+
+            const jurNote = selectedJurisdiction === 'scotland'
+                ? 'This contract is governed by Scots law. Apply Scottish legal variations throughout (5-year prescriptive period, Scottish Scheme for construction contracts, jus quaesitum tertio for third-party rights, etc.).'
+                : selectedJurisdiction === 'northern-ireland'
+                ? 'This contract is governed by Northern Ireland law. Apply NI-specific instruments throughout (Limitation (NI) Order 1989, Construction Contracts (NI) Order 1997, etc.).'
+                : 'This contract is governed by the law of England & Wales.';
+
             const tierInstructions = {
-                light: `Analyse the contract below and return a JSON object with this exact structure:
+                light: `${jurNote}
+
+Analyse the contract below and return a JSON object with this exact structure:
 
 {
   "overallRisk": "High" | "Medium" | "Low",
   "overallJustification": "One clear sentence explaining this rating",
+  "jurisdiction": "${jurLabel}",
   "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture. Write for a sales manager who has 5 minutes before a call.",
   "topRisks": [
     {
@@ -1854,20 +2069,27 @@ Every string field must be plain text (no markdown formatting inside JSON values
       "description": "2–3 sentences explaining what this risk is in plain English — not legal language",
       "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco — financial exposure, operational risk, reputational concern, etc."
     }
+  ],
+  "statutoryFlags": [
+    "Name of the UK act + one sentence in plain English explaining exactly how it applies to this contract and what it means for Ameresco. Only include acts that are genuinely relevant."
   ]
 }
 
 Rules:
 - topRisks must contain exactly 5 items, ordered High → Low
 - overallRisk reflects the single highest risk level, or Medium if risks are mixed
+- statutoryFlags: include only statutes that genuinely apply; 1–4 items is typical; if no UK statute is directly relevant, return an empty array
 - Do not include fields not listed above
 - Return ONLY the JSON object`,
 
-                medium: `Analyse the contract below and return a JSON object with this exact structure:
+                medium: `${jurNote}
+
+Analyse the contract below and return a JSON object with this exact structure:
 
 {
   "overallRisk": "High" | "Medium" | "Low",
   "overallJustification": "One clear sentence explaining this rating",
+  "jurisdiction": "${jurLabel}",
   "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture.",
   "topRisks": [
     {
@@ -1882,8 +2104,12 @@ Rules:
       "clauseRef": "Clause number or heading (e.g. 'Clause 8.2' or 'Termination')",
       "keyText": "The most relevant wording from the clause — quote directly, max 50 words",
       "meaning": "What this clause means in practice — plain English, no jargon",
-      "risk": "The specific risk or concern this creates for Ameresco"
+      "risk": "The specific risk or concern this creates for Ameresco",
+      "statutoryNote": "If a UK statute is directly relevant to this clause, name it and explain in one plain-English sentence how it applies. Omit this field if no statute applies."
     }
+  ],
+  "missingClauses": [
+    "Plain English description of a clause that is absent but should be present — explain what protection it would give Ameresco and, where relevant, whether UK law provides any default protection in its absence"
   ]
 }
 
@@ -1891,14 +2117,18 @@ Rules:
 - topRisks must contain exactly 5 items, ordered High → Low
 - clauseBreakdown must contain 6–10 of the most commercially significant clauses
 - Include both problematic clauses AND any clauses that are unusually favourable to Ameresco
+- missingClauses: list 2–5 standard protections that are absent; if none are missing, return an empty array
 - Do not include fields not listed above
 - Return ONLY the JSON object`,
 
-                high: `Analyse the contract below and return a JSON object with this exact structure:
+                high: `${jurNote}
+
+Analyse the contract below and return a JSON object with this exact structure:
 
 {
   "overallRisk": "High" | "Medium" | "Low",
   "overallJustification": "One clear sentence explaining this rating",
+  "jurisdiction": "${jurLabel}",
   "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture.",
   "topRisks": [
     {
@@ -1913,11 +2143,15 @@ Rules:
       "clauseRef": "Clause number or heading",
       "keyText": "Relevant wording — quote directly, max 50 words",
       "meaning": "What this clause means in practice",
-      "risk": "The specific risk or concern for Ameresco"
+      "risk": "The specific risk or concern for Ameresco",
+      "statutoryNote": "If a UK statute is directly relevant to this clause, name it and explain in one plain-English sentence how it applies. Omit this field if no statute applies."
     }
   ],
   "missingClauses": [
-    "Plain English description of a clause that is absent but should be present — explain what protection it would give Ameresco"
+    {
+      "description": "What clause is missing, why it matters, and what risk its absence creates for Ameresco",
+      "ukLawNote": "Whether UK law provides any default protection in the absence of this clause, and which statute if applicable — or state that there is no statutory fallback"
+    }
   ],
   "recommendedActions": [
     "Specific, actionable step — e.g. a question to raise with legal, a clause to request, or a condition to clarify before signing"
@@ -1925,15 +2159,17 @@ Rules:
   "negotiationPoints": [
     {
       "point": "The clause or term Ameresco should push back on",
-      "leverage": "Why Ameresco has grounds to negotiate here and what a better position looks like"
+      "leverage": "Why Ameresco has grounds to negotiate here and what a better position looks like",
+      "marketStandard": "What market standard looks like for this clause in comparable UK contracts — reference JCT, NEC, bespoke energy sector norms, or standard industry practice as appropriate"
     }
-  ]
+  ],
+  "legalEscalationAdvice": "A direct paragraph telling the reader whether this contract should be reviewed by a qualified solicitor before signing. If yes, state specifically what to flag and why. If the contract is relatively standard and low-risk, say so clearly. Do not hedge — give a plain view."
 }
 
 Rules:
 - topRisks must contain exactly 5 items, ordered High → Low
 - clauseBreakdown must contain 6–10 clauses
-- missingClauses: list any standard protections that are absent (3–6 items); if none are missing, return an empty array
+- missingClauses: list 3–6 absent standard protections; if none are missing, return an empty array
 - recommendedActions: 4–8 specific, actionable items
 - negotiationPoints: 3–6 items, prioritised by importance to Ameresco
 - Do not include fields not listed above
@@ -1944,7 +2180,7 @@ Rules:
         }
 
         // ─── Call Claude API ───────────────────────────────────────────────────────
-        const MAX_TOKENS = { light: 2048, medium: 4096, high: 8192 };
+        const MAX_TOKENS = { light: 2048, medium: 5000, high: 8192 };
 
         async function callClaudeAPI(text, tier) {
             const body = {
@@ -2039,12 +2275,14 @@ Rules:
                 };
             }
 
-            // 5. Normalise — ensure all expected arrays exist for every tier
+            // 5. Normalise — ensure all expected arrays/fields exist for every tier
             parsed.topRisks = parsed.topRisks || [];
             parsed.clauseBreakdown = parsed.clauseBreakdown || [];
             parsed.missingClauses = parsed.missingClauses || [];
             parsed.recommendedActions = parsed.recommendedActions || [];
             parsed.negotiationPoints = parsed.negotiationPoints || [];
+            parsed.statutoryFlags = parsed.statutoryFlags || [];
+            parsed.legalEscalationAdvice = parsed.legalEscalationAdvice || '';
 
             // Normalise risk levels to title-case so CSS classes work reliably
             const toTitleCase = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
@@ -2080,8 +2318,10 @@ Rules:
             justEl.textContent = results.overallJustification || '';
 
             // 2. Date + tier label
+            const jurDisplay = { 'england-wales': 'England & Wales', 'scotland': 'Scotland', 'northern-ireland': 'Northern Ireland' };
+            const jurStr = jurDisplay[results.jurisdiction] || results.jurisdiction || 'England & Wales';
             document.getElementById('analysisDate').textContent =
-                `Analysed on ${results.date} \u00b7 ${tierLabel(results.tier)}`;
+                `Analysed on ${results.date} \u00b7 ${tierLabel(results.tier)} \u00b7 ${jurStr}`;
 
             // 3. Executive summary — split on double newlines → multiple <p> tags
             document.getElementById('executiveSummary').innerHTML =
@@ -2091,11 +2331,11 @@ Rules:
                     .map(p => `<p>${escHtml(p.trim()).replace(/\n/g, '<br>')}</p>`)
                     .join('');
 
-            // 4. Risk cards
+            // 4. Risk cards + statutory flags
             const hasRisks = results.topRisks && results.topRisks.length > 0;
             document.getElementById('riskGridHeading').style.display = hasRisks ? '' : 'none';
             document.getElementById('riskGrid').innerHTML = hasRisks
-                ? renderRiskCards(results.topRisks)
+                ? renderRiskCards(results.topRisks) + renderStatutoryFlags(results.statutoryFlags)
                 : '';
 
             // 5. Detailed analysis sections (tier-dependent, all skip if empty)
@@ -2140,9 +2380,10 @@ Rules:
 
             let html = '';
             html += renderClauseBreakdown(results.clauseBreakdown);
-            html += renderMissingClauses(results.missingClauses);
+            html += renderMissingClauses(results.missingClauses, results.tier);
             html += renderRecommendations(results.recommendedActions);
             html += renderNegotiationPoints(results.negotiationPoints);
+            html += renderLegalEscalationAdvice(results.legalEscalationAdvice);
             return html;
         }
 
@@ -2163,6 +2404,7 @@ Rules:
                             ${escHtml(c.risk)}
                         </div>
                     </div>
+                    ${c.statutoryNote ? `<div class="clause-statutory"><strong>UK Law:</strong> ${escHtml(c.statutoryNote)}</div>` : ''}
                 </div>`).join('');
             return `
             <div class="analysis-section">
@@ -2171,10 +2413,19 @@ Rules:
             </div>`;
         }
 
-        // ─── Missing Clauses (High only) ──────────────────────────────────────────
-        function renderMissingClauses(missing) {
+        // ─── Missing Clauses (Medium: strings; High: objects with ukLawNote) ────────
+        function renderMissingClauses(missing, tier) {
             if (!missing || missing.length === 0) return '';
-            const items = missing.map(m => `<li>${escHtml(m)}</li>`).join('');
+            let items;
+            if (tier === 'high' && missing.length > 0 && typeof missing[0] === 'object') {
+                items = missing.map(m => `
+                    <li class="missing-item">
+                        <div class="missing-item-desc">${escHtml(m.description)}</div>
+                        ${m.ukLawNote ? `<div class="missing-item-law"><strong>UK law fallback:</strong> ${escHtml(m.ukLawNote)}</div>` : ''}
+                    </li>`).join('');
+            } else {
+                items = missing.map(m => `<li>${escHtml(typeof m === 'object' ? m.description || JSON.stringify(m) : m)}</li>`).join('');
+            }
             return `
             <div class="analysis-section">
                 <h3>Missing or Absent Clauses</h3>
@@ -2202,11 +2453,33 @@ Rules:
                 <div class="neg-item">
                     <div class="neg-point">${escHtml(p.point)}</div>
                     <div class="neg-leverage">${escHtml(p.leverage)}</div>
+                    ${p.marketStandard ? `<div class="neg-market"><strong>Market standard:</strong> ${escHtml(p.marketStandard)}</div>` : ''}
                 </div>`).join('');
             return `
             <div class="analysis-section">
                 <h3>Negotiation Leverage Points</h3>
                 ${items}
+            </div>`;
+        }
+
+        // ─── Statutory Flags (Light Touch) ───────────────────────────────────────
+        function renderStatutoryFlags(flags) {
+            if (!flags || flags.length === 0) return '';
+            const items = flags.map(f => `<li>${escHtml(f)}</li>`).join('');
+            return `
+            <div class="statutory-flags">
+                <h4>UK Statutory Considerations</h4>
+                <ul>${items}</ul>
+            </div>`;
+        }
+
+        // ─── Legal Escalation Advice (High only) ─────────────────────────────────
+        function renderLegalEscalationAdvice(advice) {
+            if (!advice) return '';
+            return `
+            <div class="analysis-section escalation-section">
+                <h3>Legal Escalation Advice</h3>
+                <div class="escalation-body">${escHtml(advice)}</div>
             </div>`;
         }
 

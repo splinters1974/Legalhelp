@@ -1570,6 +1570,9 @@
         // ─── Configuration ────────────────────────────────────────────────────────
         // SITE_API_KEY is defined in config.js (loaded in <head>)
         // ─── State ────────────────────────────────────────────────────────────────
+        // Set to true to enable the follow-up Q&A feature
+        const QA_ENABLED = false;
+
         let apiKey = localStorage.getItem('ameresco_api_key') || SITE_API_KEY;
         let currentFile = null;
         let selectedTier = 'medium';
@@ -2465,8 +2468,8 @@ Rules:
             section.classList.add('show', 'fade-in');
             section.scrollIntoView({ behavior: 'smooth' });
 
-            // 7. Show Q&A (hidden in demo mode where contractText is empty)
-            document.getElementById('qaSection').style.display = contractText ? 'block' : 'none';
+            // 7. Show Q&A only when feature flag is enabled and a real contract is loaded
+            document.getElementById('qaSection').style.display = (QA_ENABLED && contractText) ? 'block' : 'none';
             document.getElementById('qaThread').innerHTML = '';
             document.getElementById('qaInput').value = '';
             clearError('qaError');

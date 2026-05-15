@@ -11,7 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"
+            onerror="(function(){var s=document.createElement('script');s.src='https://unpkg.com/docx@8.5.0/build/index.umd.js';document.head.appendChild(s);})()"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <style>
@@ -3033,13 +3034,36 @@ Rules:
         }
 
         // ─── Word Report ──────────────────────────────────────────────────────────
+        function loadDocxLibrary() {
+            return new Promise((resolve, reject) => {
+                if (window.docx) { resolve(); return; }
+                const urls = [
+                    'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
+                    'https://unpkg.com/docx@8.5.0/build/index.umd.js',
+                ];
+                let idx = 0;
+                function tryNext() {
+                    if (idx >= urls.length) { reject(new Error('Word library could not be loaded.')); return; }
+                    const s = document.createElement('script');
+                    s.src = urls[idx++];
+                    s.onload = () => window.docx ? resolve() : tryNext();
+                    s.onerror = tryNext;
+                    document.head.appendChild(s);
+                }
+                tryNext();
+            });
+        }
+
         async function downloadWord() {
             if (!analysisResults) return;
             clearError('downloadError');
             if (!window.docx) {
-                showError('downloadError',
-                    'Word library failed to load. Please refresh the page and try again.');
-                return;
+                try {
+                    await loadDocxLibrary();
+                } catch (e) {
+                    showError('downloadError', 'Word library failed to load. Please check your internet connection and try again.');
+                    return;
+                }
             }
 
             try {

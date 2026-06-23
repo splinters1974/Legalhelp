@@ -2357,28 +2357,46 @@ Rules:
         }
 
         // ─── Parse Claude Response ─────────────────────────────────────────────────
+        function sanitiseJson(str) {
+            // Replace literal newlines inside JSON string values with \n escape
+            return str.replace(/"((?:[^"\\]|\\.)*)"/gs, (match) =>
+                match.replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+            );
+        }
+
+        function tryParse(str) {
+            try { return JSON.parse(str); } catch { return null; }
+        }
+
         function parseResponse(raw, tier) {
-            // 1. Try direct JSON parse
             let parsed = null;
-            try {
-                parsed = JSON.parse(raw.trim());
-            } catch {
-                // 2. Claude sometimes wraps JSON in a ```json ... ``` code block
-                const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+
+            // 1. Try direct JSON parse
+            parsed = tryParse(raw.trim());
+
+            // 2. Claude sometimes wraps JSON in a ```json ... ``` code block
+            if (!parsed) {
+                const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/s);
                 if (fenceMatch) {
-                    try {
-                        parsed = JSON.parse(fenceMatch[1].trim());
-                    } catch { /* fall through */ }
+                    parsed = tryParse(fenceMatch[1].trim()) || tryParse(sanitiseJson(fenceMatch[1].trim()));
                 }
             }
 
-            // 3. If still not parsed, extract the first {...} block
+            // 3. Extract the first {...} block (greedy, to capture the whole object)
             if (!parsed) {
                 const braceMatch = raw.match(/\{[\s\S]*\}/);
                 if (braceMatch) {
-                    try {
-                        parsed = JSON.parse(braceMatch[0]);
-                    } catch { /* fall through */ }
+                    parsed = tryParse(braceMatch[0]) || tryParse(sanitiseJson(braceMatch[0]));
+                }
+            }
+
+            // 4. Sanitise the full raw string and retry all of the above
+            if (!parsed) {
+                const san = sanitiseJson(raw.trim());
+                parsed = tryParse(san);
+                if (!parsed) {
+                    const braceMatch = san.match(/\{[\s\S]*\}/);
+                    if (braceMatch) parsed = tryParse(braceMatch[0]);
                 }
             }
 

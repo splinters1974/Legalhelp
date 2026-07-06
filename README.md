@@ -8,10 +8,24 @@ Internal web application for AI-powered contract risk analysis. Upload a PDF or 
 
 ```
 /
-├── index.html       # Single-file application (HTML + CSS + JS)
-├── netlify.toml     # Netlify build config and security headers
-└── README.md        # This file
+├── index.html                          # Single-file front end (HTML + CSS + JS)
+├── logo-data.js                        # Embedded logo as a data URI
+├── netlify/functions/claude-proxy.mjs  # Server-side proxy holding the API key
+├── netlify.toml                        # Netlify build config and security headers
+└── README.md                           # This file
 ```
+
+---
+
+## How it works
+
+The browser never talks to the Anthropic API directly and never sees the API key. All AI calls go to `/api/claude`, a Netlify Function that:
+
+1. Validates the shared site password sent with every request
+2. Attaches the Anthropic API key (from an environment variable)
+3. Streams Claude's response back to the browser
+
+The login screen validates the password against the same function, so no password appears anywhere in the front-end code.
 
 ---
 
@@ -27,76 +41,61 @@ Internal web application for AI-powered contract risk analysis. Upload a PDF or 
    - **Publish directory:** `.`
 5. Click **Deploy site**
 
-Netlify will deploy automatically on every push to `main`.
+Netlify deploys automatically on every push to `main`, including the function in `netlify/functions/`.
 
-### Step 2 — Set a custom domain (optional but recommended)
+### Step 2 — Set environment variables (required)
 
-1. Purchase a domain (e.g. `ameresco-tools.com`) via Namecheap or GoDaddy
+In Netlify: **Site configuration → Environment variables**
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `ANTHROPIC_API_KEY` | **Yes** | The Anthropic API key used for all analyses. Create one at [console.anthropic.com](https://console.anthropic.com) under a dedicated Ameresco account with a monthly spend limit set. |
+| `SITE_PASSWORD` | Recommended | Overrides the default site password baked into the function code. |
+
+**The app will not work until `ANTHROPIC_API_KEY` is set.** Users will see a clear "site is not fully configured" message.
+
+After changing environment variables, trigger a redeploy so the function picks them up.
+
+### Step 3 — Set a custom domain (optional)
+
+1. Purchase a domain via Namecheap or GoDaddy
 2. In Netlify: **Domain settings → Add a domain**
 3. Follow the DNS configuration instructions Netlify provides
-
-### Step 3 — Enable password protection
-
-Netlify password protection is configured in the dashboard, not via a file:
-
-1. Go to **Site configuration → Access control → Visitor access**
-2. Select **Password protection**
-3. Set a shared password and click **Save**
-4. All staff will use this single password to access the tool
-
-> Note: For v2, individual user accounts can be added via Netlify Identity or a backend proxy.
-
----
-
-## API Key
-
-Users enter their Anthropic API key when they first open the tool. The key:
-
-- Is validated client-side (must start with `sk-ant`)
-- Is stored in `sessionStorage` only — cleared when the browser tab closes
-- Is **never** sent anywhere except directly to `api.anthropic.com`
-- Is **never** hardcoded into the source code
-
-### Setting up a dedicated Anthropic account
-
-1. Create an account at [console.anthropic.com](https://console.anthropic.com) using an Ameresco business email
-2. Add a company payment method
-3. Set a monthly spend limit under **Settings → Billing**
-4. Create an API key under **Settings → API Keys** and distribute to authorised staff
-
----
-
-## Build Chunks (development progress)
-
-| Chunk | Status | Description |
-|-------|--------|-------------|
-| 1 — Foundation | ✅ Complete | HTML/CSS scaffold, netlify config, repo setup |
-| 2 — Document Processing | ✅ Complete | PDF (page-by-page, progress) and Word extraction, smart truncation |
-| 3 — Claude Integration | ✅ Complete | Structured JSON prompts, API call, 4-layer response parsing |
-| 4 — Results Display | ✅ Complete | Risk cards, clause breakdown, recommendations, negotiation points |
-| 5 — Report Generation | ✅ Complete | PDF (jsPDF, page-break logic) and Word (docx.js) downloads |
-| 6 — Polish & Deploy | ✅ Complete | Inline error UI, button state, no alerts, final clean-up |
 
 ---
 
 ## Local Development
 
-No build step required. Open `index.html` directly in a browser, or serve with any static server:
+The front end depends on the Netlify Function, so use the Netlify CLI rather than opening `index.html` directly:
 
 ```bash
-npx serve .
-# or
-python3 -m http.server 8080
+npm install -g netlify-cli
+export ANTHROPIC_API_KEY=sk-ant-...   # or set in a .env file
+netlify dev
 ```
+
+This serves the site and the function together at `http://localhost:8888`.
 
 ---
 
 ## Security Notes
 
-- API key is runtime-entered and session-scoped — no server-side storage in v1
-- Security headers set in `netlify.toml` (X-Frame-Options, CSP, etc.)
-- Content Security Policy restricts outbound connections to `api.anthropic.com` only
-- Password protection at Netlify level prevents public access
+- The Anthropic API key lives only in a Netlify environment variable — it is never sent to the browser, never committed to the repository
+- The site password is validated server-side by the function; it does not appear in any code delivered to the browser
+- All Claude traffic goes through `/api/claude` on the same origin; the Content Security Policy blocks the browser from connecting anywhere else
+- Security headers (X-Frame-Options, CSP, etc.) are set in `netlify.toml`
+- Documents are processed in the browser and sent only to the proxy → Anthropic API; nothing is stored server-side
+
+> If an Anthropic API key was ever committed to this repository or entered on the old admin panel, revoke and rotate it in the Anthropic console.
+
+---
+
+## Usage limits
+
+- Maximum upload size: 50 MB
+- PDFs: first 200 pages are processed
+- Contract text: first ~400,000 characters are analysed (a warning is shown if truncated)
+- Supported formats: `.pdf` and `.docx` (legacy `.doc` files must be re-saved as `.docx`)
 
 ---
 

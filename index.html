@@ -7,7 +7,6 @@
 
     <!-- External Libraries -->
     <script src="./logo-data.js"></script>
-    <script src="./config.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -69,7 +68,7 @@
         }
 
         .logo-img {
-            height: 130px;
+            height: 90px;
             width: auto;
             background: var(--white);
             border-radius: 10px;
@@ -1021,6 +1020,10 @@
                 padding: 1rem;
             }
 
+            .logo-img {
+                height: 64px;
+            }
+
             .header-content {
                 flex-direction: column;
                 gap: 1rem;
@@ -1271,53 +1274,20 @@
 </head>
 <body>
     <!-- Site Login Modal -->
-    <div id="siteLoginModal" class="modal-overlay">
+    <div id="siteLoginModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="siteLoginTitle">
         <div class="modal" style="text-align:center;">
             <img id="loginLogo" alt="Ameresco Contract Assistance" style="height:70px;width:auto;margin-bottom:1.5rem;">
-            <h2>Contract Risk Analyser</h2>
+            <h2 id="siteLoginTitle">Contract Risk Analyser</h2>
             <p>Enter the site password to access this tool.</p>
             <div class="input-group" style="text-align:left;">
                 <label for="sitePassword">Password</label>
-                <input type="password" id="sitePassword" placeholder="Enter password"
+                <input type="password" id="sitePassword" placeholder="Enter password" autocomplete="current-password"
                        onkeydown="if(event.key==='Enter') checkSiteLogin()">
                 <div class="input-error" id="siteLoginError">Incorrect password. Please try again.</div>
             </div>
-            <button class="btn btn-primary" onclick="checkSiteLogin()" style="width:100%;">
+            <button class="btn btn-primary" id="siteLoginBtn" onclick="checkSiteLogin()" style="width:100%;">
                 Enter
             </button>
-        </div>
-    </div>
-
-    <!-- Admin Modal -->
-    <div id="adminModal" class="modal-overlay" style="display:none;">
-        <div class="modal">
-            <h2>Admin Settings</h2>
-            <div id="adminLoginStep">
-                <p>Enter the admin password to manage settings.</p>
-                <div class="input-group">
-                    <label for="adminPassword">Admin Password</label>
-                    <input type="password" id="adminPassword" placeholder="Admin password"
-                           onkeydown="if(event.key==='Enter') checkAdminLogin()">
-                    <div class="input-error" id="adminPasswordError">Incorrect admin password.</div>
-                </div>
-                <div style="display:flex;gap:0.75rem;">
-                    <button class="btn btn-primary" onclick="checkAdminLogin()" style="flex:1;">Login</button>
-                    <button class="btn btn-outline" onclick="closeAdmin()" style="flex:1;">Cancel</button>
-                </div>
-            </div>
-            <div id="adminSettingsStep" style="display:none;">
-                <p>Manage the Anthropic API key used by this tool. The key is stored in your browser and applies to all users on this device.</p>
-                <div class="input-group">
-                    <label for="adminApiKeyInput">Anthropic API Key</label>
-                    <input type="password" id="adminApiKeyInput" placeholder="sk-ant-api03-...">
-                    <div class="input-error" id="adminKeyError">Please enter a valid key starting with sk-ant</div>
-                </div>
-                <div id="adminCurrentKeyInfo" style="font-size:0.8rem;color:var(--slate-light);margin-bottom:1.25rem;padding:0.5rem 0.75rem;background:var(--gray-100);border-radius:6px;"></div>
-                <div style="display:flex;gap:0.75rem;">
-                    <button class="btn btn-primary" onclick="saveAdminKey()" style="flex:1;">Save Key</button>
-                    <button class="btn btn-outline" onclick="closeAdmin()" style="flex:1;">Close</button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -1334,9 +1304,6 @@
             <div class="logo-area">
                 <img id="headerLogo" alt="Ameresco Contract Assistance" class="logo-img">
             </div>
-            <button class="btn btn-outline" onclick="openAdmin()" style="color: var(--white); border-color: rgba(255,255,255,0.3); font-size:0.8rem; padding:0.4rem 0.9rem;">
-                Admin
-            </button>
         </div>
     </header>
 
@@ -1353,10 +1320,10 @@
                 </div>
                 <div class="upload-text">
                     <h3>Upload your contract</h3>
-                    <p>Drag and drop or click to browse &mdash; supports PDF and Word documents (.pdf, .doc, .docx)</p>
+                    <p>Drag and drop or click to browse &mdash; supports PDF and Word documents (.pdf, .docx)</p>
                 </div>
             </div>
-            <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx" onchange="handleFileSelect(event)">
+            <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx" onchange="handleFileSelect(event)">
             <div id="truncationWarning" class="truncation-warning hidden">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
@@ -1569,12 +1536,14 @@
 
     <script>
         // ─── Configuration ────────────────────────────────────────────────────────
-        // SITE_API_KEY is defined in config.js (loaded in <head>)
-        // ─── State ────────────────────────────────────────────────────────────────
+        // All Claude calls go through the Netlify Function at /api/claude, which
+        // holds the Anthropic API key server-side and validates the site password.
+        const PROXY_URL = '/api/claude';
+
         // Set to true to enable the follow-up Q&A feature
         const QA_ENABLED = false;
 
-        let apiKey = localStorage.getItem('ameresco_api_key') || SITE_API_KEY;
+        // ─── State ────────────────────────────────────────────────────────────────
         let currentFile = null;
         let selectedTier = 'medium';
         let selectedJurisdiction = 'england-wales';
@@ -1582,10 +1551,13 @@
         let contractText = '';
         let extractionMeta = null;
 
-        // Character limit sent to Claude — leaves ample room for prompt + response
-        const MAX_CHARS = 100000;
+        // Character limit sent to Claude (~100k tokens) — well within the model's
+        // 200k context window while leaving room for the prompt and response
+        const MAX_CHARS = 400000;
         // Page cap for PDFs to avoid very long extraction on huge documents
         const MAX_PDF_PAGES = 200;
+        // Reject files above this size before reading them into memory
+        const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
 
         // ─── Init ─────────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
@@ -1596,8 +1568,13 @@
             const headerLogoEl = document.getElementById('headerLogo');
             if (headerLogoEl) headerLogoEl.src = LOGO_DATA_URI;
 
-            const siteAuthed = sessionStorage.getItem('site_authed');
-            document.getElementById('siteLoginModal').style.display = siteAuthed ? 'none' : 'flex';
+            // Clean up storage keys used by older versions of this tool
+            sessionStorage.removeItem('site_authed');
+            localStorage.removeItem('ameresco_api_key');
+
+            const authed = !!sessionStorage.getItem('site_password');
+            document.getElementById('siteLoginModal').style.display = authed ? 'none' : 'flex';
+            if (!authed) document.getElementById('sitePassword').focus();
 
             // Configure PDF.js worker from the same CDN version
             if (typeof pdfjsLib !== 'undefined') {
@@ -1637,79 +1614,47 @@
         }
 
         // ─── Site Login ───────────────────────────────────────────────────────────
-        function checkSiteLogin() {
+        // The password is validated server-side by the Netlify Function, then kept
+        // in sessionStorage and sent with each analysis request.
+        async function checkSiteLogin() {
             const pwd = document.getElementById('sitePassword').value;
             const errEl = document.getElementById('siteLoginError');
-            if (pwd === 'ameresco2026') {
-                sessionStorage.setItem('site_authed', '1');
-                document.getElementById('siteLoginModal').style.display = 'none';
-                errEl.classList.remove('show');
-                // Re-read api key now that we're in
-                apiKey = localStorage.getItem('ameresco_api_key') || SITE_API_KEY;
-                updateAnalyseBtn();
-            } else {
+            const btn = document.getElementById('siteLoginBtn');
+            if (!pwd) {
+                errEl.textContent = 'Please enter the site password.';
                 errEl.classList.add('show');
-                document.getElementById('sitePassword').focus();
+                return;
             }
-        }
 
-        // ─── Admin Panel ──────────────────────────────────────────────────────────
-        function openAdmin() {
-            document.getElementById('adminModal').style.display = 'flex';
-            document.getElementById('adminLoginStep').style.display = 'block';
-            document.getElementById('adminSettingsStep').style.display = 'none';
-            document.getElementById('adminPassword').value = '';
-            document.getElementById('adminPasswordError').classList.remove('show');
-        }
-
-        function closeAdmin() {
-            document.getElementById('adminModal').style.display = 'none';
-        }
-
-        function checkAdminLogin() {
-            const pwd = document.getElementById('adminPassword').value;
-            const errEl = document.getElementById('adminPasswordError');
-            if (pwd === 'splinters1974') {
-                errEl.classList.remove('show');
-                document.getElementById('adminLoginStep').style.display = 'none';
-                document.getElementById('adminSettingsStep').style.display = 'block';
-                // Show masked current key
-                const currentKey = localStorage.getItem('ameresco_api_key') || SITE_API_KEY;
-                const infoEl = document.getElementById('adminCurrentKeyInfo');
-                if (currentKey) {
-                    infoEl.textContent = 'Current key: ' + currentKey.substring(0, 14) + '••••••••••••' + currentKey.slice(-4);
+            btn.disabled = true;
+            btn.textContent = 'Checking…';
+            try {
+                const resp = await fetch(PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'verify', password: pwd })
+                });
+                if (resp.ok) {
+                    sessionStorage.setItem('site_password', pwd);
+                    document.getElementById('siteLoginModal').style.display = 'none';
+                    errEl.classList.remove('show');
+                } else if (resp.status === 401) {
+                    errEl.textContent = 'Incorrect password. Please try again.';
+                    errEl.classList.add('show');
+                    document.getElementById('sitePassword').focus();
                 } else {
-                    infoEl.textContent = 'No API key configured. Enter one below.';
+                    let msg = 'Could not verify the password. Please try again.';
+                    try { const d = await resp.json(); if (d.error?.message) msg = d.error.message; } catch { /* keep default */ }
+                    errEl.textContent = msg;
+                    errEl.classList.add('show');
                 }
-                document.getElementById('adminApiKeyInput').value = '';
-                document.getElementById('adminKeyError').classList.remove('show');
-            } else {
+            } catch {
+                errEl.textContent = 'Network error — could not reach the server. Check your connection and try again.';
                 errEl.classList.add('show');
-                document.getElementById('adminPassword').focus();
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Enter';
             }
-        }
-
-        function saveAdminKey() {
-            const key = document.getElementById('adminApiKeyInput').value.trim();
-            const errEl = document.getElementById('adminKeyError');
-            if (key && key.startsWith('sk-ant')) {
-                localStorage.setItem('ameresco_api_key', key);
-                apiKey = key;
-                errEl.classList.remove('show');
-                updateAnalyseBtn();
-                closeAdmin();
-                // Brief confirmation
-                const btn = document.querySelector('#adminSettingsStep .btn-primary');
-                if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save Key'; }, 2000); }
-            } else {
-                errEl.classList.add('show');
-                document.getElementById('adminApiKeyInput').focus();
-            }
-        }
-
-        function updateAnalyseBtn() {
-            const btn = document.getElementById('analyzeBtn');
-            if (btn) btn.disabled = !currentFile;
         }
 
         // ─── File Handling ────────────────────────────────────────────────────────
@@ -1719,9 +1664,21 @@
 
         function handleFile(file) {
             const ext = file.name.split('.').pop().toLowerCase();
-            if (!['pdf', 'doc', 'docx'].includes(ext)) {
+            if (ext === 'doc') {
                 showError('uploadError',
-                    'Unsupported file type. Please upload a PDF or Word document (.pdf, .doc, .docx).');
+                    'Legacy .doc files are not supported. Please open the document in Word, ' +
+                    'save it as .docx (File → Save As → Word Document), and upload that instead.');
+                return;
+            }
+            if (!['pdf', 'docx'].includes(ext)) {
+                showError('uploadError',
+                    'Unsupported file type. Please upload a PDF or Word document (.pdf, .docx).');
+                return;
+            }
+            if (file.size > MAX_FILE_BYTES) {
+                showError('uploadError',
+                    'This file is ' + formatFileSize(file.size) + ' — the maximum supported size is ' +
+                    formatFileSize(MAX_FILE_BYTES) + '. Try a smaller export of the document (e.g. without scanned images).');
                 return;
             }
             clearError('uploadError');
@@ -1942,21 +1899,9 @@
                 }
             ],
             missingClauses: [
-                {
-                    clause: 'Change in Law',
-                    importance: 'High',
-                    consequence: 'No mechanism to adjust contract price or obligations if energy regulations, carbon pricing, or grid connection rules change during the contract term. Ameresco bears the risk of regulatory change in full.'
-                },
-                {
-                    clause: 'Step-In Rights',
-                    importance: 'Medium',
-                    consequence: 'No right for Ameresco to step in if a Client-controlled interface (e.g. building management system access) is withdrawn or degraded, which could prevent Ameresco from meeting its performance obligations.'
-                },
-                {
-                    clause: 'Benchmarking / Market Testing Limitation',
-                    importance: 'Medium',
-                    consequence: 'No restriction on the Client benchmarking or market-testing the services during the term. Without a restriction, the Client could use benchmark results to pressure renegotiation or justify early termination.'
-                }
+                'Change in Law — there is no mechanism to adjust the contract price or obligations if energy regulations, carbon pricing, or grid connection rules change during the term. Ameresco bears the risk of regulatory change in full.',
+                'Step-In Rights — no right for Ameresco to step in if a Client-controlled interface (e.g. building management system access) is withdrawn or degraded, which could prevent Ameresco from meeting its performance obligations.',
+                'Benchmarking / Market Testing Limitation — no restriction on the Client benchmarking or market-testing the services during the term, which the Client could use to pressure renegotiation or justify early termination.'
             ],
             recommendedActions: [
                 'Redraft Clause 14.4 to extend the consequential loss exclusion to all indirect and consequential loss, revenue loss, loss of profit, and loss of contract — not just "loss of anticipated savings".',
@@ -1968,30 +1913,33 @@
             negotiationPoints: [
                 {
                     point: 'Liability cap structure',
-                    priority: 'Must Have',
-                    suggestedPosition: 'Retain the 12-month contract value cap but replace Clause 14.4 with a standard mutual exclusion of all indirect and consequential loss, including loss of revenue, loss of profit, and loss of contract.'
+                    leverage: 'Retain the 12-month contract value cap but replace Clause 14.4 with a standard mutual exclusion of all indirect and consequential loss, including loss of revenue, loss of profit, and loss of contract.',
+                    marketStandard: 'Comparable UK energy services contracts almost universally pair a contract-value cap with a broad mutual consequential loss exclusion — the narrow carve-out here is well outside market norms.'
                 },
                 {
                     point: 'Termination compensation',
-                    priority: 'Must Have',
-                    suggestedPosition: 'Minimum 90-day notice. Termination payment = costs incurred + loss of profit for the unexpired term at agreed margin + committed subcontractor break costs, capped at 24 months\' contract value.'
+                    leverage: 'Minimum 90-day notice. Termination payment = costs incurred + loss of profit for the unexpired term at agreed margin + committed subcontractor break costs, capped at 24 months\' contract value.',
+                    marketStandard: 'NEC4 and bespoke EPC/energy contracts typically provide 90–180 days\' notice for convenience termination with a defined compensation schedule including demobilisation and profit on the unexpired term.'
                 },
                 {
                     point: 'Payment terms',
-                    priority: 'Should Have',
-                    suggestedPosition: '30 days net from valid invoice. Statutory interest at 8% over base rate automatically applies from day 31 without further notice.'
+                    leverage: '30 days net from valid invoice. Statutory interest at 8% over base rate automatically applies from day 31 without further notice.',
+                    marketStandard: '30 days net is standard for UK commercial energy services; the Late Payment of Commercial Debts (Interest) Act 1998 applies by default and cannot generally be contracted out of without a substantial contractual remedy.'
                 },
                 {
                     point: 'M&V Protocol',
-                    priority: 'Should Have',
-                    suggestedPosition: 'Attach IPMVP Option B as Schedule 5. Baselines fixed at contract execution. Adjustments permitted for changes in occupancy >10% or material operational changes outside Ameresco\'s control.'
+                    leverage: 'Attach IPMVP Option B as Schedule 5. Baselines fixed at contract execution. Adjustments permitted for changes in occupancy >10% or material operational changes outside Ameresco\'s control.',
+                    marketStandard: 'IPMVP is the recognised industry standard for energy performance contracts; guaranteed-savings deals without a defined M&V schedule are rare and dispute-prone.'
                 }
             ]
         };
 
         function runDemo() {
-            // Clear any prior state
+            // Clear any prior state (including contract text from an earlier
+            // real analysis, so demo results are never mixed with real data)
             analysisResults = null;
+            contractText = '';
+            extractionMeta = null;
             clearError('analysisError');
             document.getElementById('truncationWarning').classList.add('hidden');
 
@@ -2017,12 +1965,18 @@
 
         // ─── Main Analysis Orchestration ──────────────────────────────────────────
         async function analyzeContract() {
-            if (!currentFile || !apiKey) return;
+            if (!currentFile) return;
+            if (!sessionStorage.getItem('site_password')) {
+                document.getElementById('siteLoginModal').style.display = 'flex';
+                document.getElementById('sitePassword').focus();
+                return;
+            }
 
             // Reset any previous state and clear errors
             contractText = '';
             extractionMeta = null;
             document.getElementById('truncationWarning').classList.add('hidden');
+            document.getElementById('truncationMessage').textContent = '';
             clearError('uploadError');
             clearError('analysisError');
             const demoBanner = document.getElementById('demoBanner');
@@ -2102,11 +2056,22 @@
 
                 // ── Step 5: Send to Claude ──────────────────────────────────────
                 showLoading('Sending to Claude...', 'AI analysis in progress — this takes 30–60 seconds');
-                const rawResponse = await callClaudeAPI(contractText, selectedTier);
+                const { text: rawResponse, stopReason } = await callClaudeAPI(contractText, selectedTier);
 
                 // ── Step 6: Parse structured response ─────────────────────────────
                 showLoading('Processing results...', 'Almost done');
                 const parsed = parseResponse(rawResponse, selectedTier);
+
+                // Surface a warning if the model hit its output limit — the report
+                // may be missing sections or have fallen back to raw text
+                if (stopReason === 'max_tokens') {
+                    const warningEl = document.getElementById('truncationWarning');
+                    const msgEl = document.getElementById('truncationMessage');
+                    const note = 'The AI response reached its length limit, so the report may be incomplete. ' +
+                        'If sections look cut off, try re-running the analysis or use a lighter analysis depth.';
+                    msgEl.textContent = msgEl.textContent ? msgEl.textContent + ' ' + note : note;
+                    warningEl.classList.remove('hidden');
+                }
 
                 // ── Step 7: Display results ────────────────────────────────────────
                 analysisResults = {
@@ -2301,31 +2266,22 @@ Rules:
             return tierInstructions[tier];
         }
 
-        // ─── Call Claude API ───────────────────────────────────────────────────────
-        const MAX_TOKENS = { light: 2048, medium: 5000, high: 8192 };
+        // ─── Call Claude via the server-side proxy ─────────────────────────────────
+        const MAX_TOKENS = { light: 4096, medium: 8192, high: 16384 };
 
-        async function callClaudeAPI(text, tier) {
-            const body = {
-                model: 'claude-sonnet-4-5',
-                max_tokens: MAX_TOKENS[tier],
-                system: SYSTEM_PROMPT,
-                messages: [{
-                    role: 'user',
-                    content: buildPrompt(tier) + '\n\n---\n\nCONTRACT TEXT:\n\n' + text
-                }]
-            };
-
+        // Sends a Messages API payload to the Netlify Function, which attaches the
+        // API key and streams Anthropic's SSE response back. Returns the full text
+        // and the stop reason once the stream completes.
+        async function callClaudeProxy(payload, onProgress) {
             let response;
             try {
-                response = await fetch('https://api.anthropic.com/v1/messages', {
+                response = await fetch(PROXY_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify(body)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        password: sessionStorage.getItem('site_password') || '',
+                        payload
+                    })
                 });
             } catch (networkErr) {
                 throw new Error('Network error — check your internet connection and try again.');
@@ -2341,19 +2297,72 @@ Rules:
                 }
 
                 if (response.status === 401) {
-                    throw new Error('Invalid API key. Please click "Change API Key" and enter a valid Anthropic key starting with sk-ant.');
+                    sessionStorage.removeItem('site_password');
+                    document.getElementById('siteLoginModal').style.display = 'flex';
+                    throw new Error('Your session is no longer valid. Please log in again with the site password.');
                 }
                 if (response.status === 429) {
-                    throw new Error('Rate limit reached on your Anthropic account. Wait a moment and try again, or check your usage limits in the Anthropic console.');
+                    throw new Error('Rate limit reached. Wait a moment and try again.');
                 }
                 if (response.status >= 500) {
-                    throw new Error('Anthropic service error. Please try again in a few minutes.');
+                    throw new Error(errMsg || 'Service error. Please try again in a few minutes.');
                 }
                 throw new Error(`API error (${response.status}): ${errMsg}`);
             }
 
-            const data = await response.json();
-            return data.content[0].text;
+            // Reassemble the SSE stream into the full response text
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let text = '';
+            let stopReason = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                let nl;
+                while ((nl = buffer.indexOf('\n')) !== -1) {
+                    const line = buffer.slice(0, nl).trim();
+                    buffer = buffer.slice(nl + 1);
+                    if (!line.startsWith('data:')) continue;
+
+                    let evt;
+                    try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+                    if (evt.type === 'content_block_delta' && evt.delta && evt.delta.text) {
+                        text += evt.delta.text;
+                        if (onProgress) onProgress(text.length);
+                    } else if (evt.type === 'message_delta' && evt.delta && evt.delta.stop_reason) {
+                        stopReason = evt.delta.stop_reason;
+                    } else if (evt.type === 'error') {
+                        throw new Error(evt.error?.message || 'The AI service returned an error mid-response. Please try again.');
+                    }
+                }
+            }
+
+            if (!text) {
+                throw new Error('The AI service returned an empty response. Please try again.');
+            }
+            return { text, stopReason };
+        }
+
+        async function callClaudeAPI(text, tier) {
+            const payload = {
+                model: 'claude-sonnet-4-5',
+                max_tokens: MAX_TOKENS[tier],
+                system: SYSTEM_PROMPT,
+                messages: [{
+                    role: 'user',
+                    content: buildPrompt(tier) + '\n\n---\n\nCONTRACT TEXT:\n\n' + text
+                }]
+            };
+
+            return callClaudeProxy(payload, (chars) => {
+                document.getElementById('loadingSubtext').textContent =
+                    `Receiving analysis — ${(chars / 1000).toFixed(1)}k characters so far`;
+            });
         }
 
         // ─── Parse Claude Response ─────────────────────────────────────────────────
@@ -2400,7 +2409,7 @@ Rules:
                 }
             }
 
-            // 4. Hard fallback — wrap raw text so the rest of the UI can still render
+            // 5. Hard fallback — wrap raw text so the rest of the UI can still render
             if (!parsed) {
                 return {
                     overallRisk: 'Unknown',
@@ -2415,7 +2424,7 @@ Rules:
                 };
             }
 
-            // 5. Normalise — ensure all expected arrays/fields exist for every tier
+            // 6. Normalise — ensure all expected arrays/fields exist for every tier
             parsed.topRisks = parsed.topRisks || [];
             parsed.clauseBreakdown = parsed.clauseBreakdown || [];
             parsed.missingClauses = parsed.missingClauses || [];
@@ -2675,38 +2684,13 @@ Rules:
                 `QUESTION: ${question}\n\n` +
                 `CONTRACT TEXT:\n\n${contractText}`;
 
-            let response;
-            try {
-                response = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: 'claude-sonnet-4-5',
-                        max_tokens: 1024,
-                        system: qaSystemPrompt,
-                        messages: [{ role: 'user', content: userMessage }]
-                    })
-                });
-            } catch (networkErr) {
-                throw new Error('Network error — check your internet connection and try again.');
-            }
-
-            if (!response.ok) {
-                let errMsg;
-                try { const d = await response.json(); errMsg = d.error?.message || response.statusText; }
-                catch { errMsg = response.statusText; }
-                if (response.status === 401) throw new Error('Invalid API key. Please update it via the Admin panel.');
-                if (response.status === 429) throw new Error('Rate limit reached. Wait a moment and try again.');
-                throw new Error(`API error (${response.status}): ${errMsg}`);
-            }
-
-            const data = await response.json();
-            return data.content[0].text;
+            const { text } = await callClaudeProxy({
+                model: 'claude-sonnet-4-5',
+                max_tokens: 1024,
+                system: qaSystemPrompt,
+                messages: [{ role: 'user', content: userMessage }]
+            });
+            return text;
         }
 
         function renderQAItem(question, answer) {
@@ -2970,17 +2954,30 @@ Rules:
                 }
             }
 
+            // ── Statutory Flags (Light Touch) ──────────────────────────────────────
+            if (analysisResults.statutoryFlags && analysisResults.statutoryFlags.length > 0) {
+                y = sectionHead('UK Statutory Considerations', y);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                for (const flag of analysisResults.statutoryFlags) {
+                    y = chk(y, 10);
+                    doc.setFillColor(...C.amber);
+                    doc.ellipse(M + 2.5, y - 1, 1.2, 1.2, 'F');
+                    doc.setTextColor(...C.slate);
+                    y = writePara(String(flag), M + 7, y, CW - 7, 5.2);
+                    y += 2;
+                }
+                y += 4;
+            }
+
             // ── Missing Clauses ────────────────────────────────────────────────────
             if (analysisResults.missingClauses && analysisResults.missingClauses.length > 0) {
                 y = sectionHead('Missing or Absent Clauses', y);
                 for (const item of analysisResults.missingClauses) {
-                    // Handle both string items (Claude) and object items (demo)
-                    const clauseName = typeof item === 'string' ? item
-                        : (item.clause || '');
-                    const clauseDetail = typeof item === 'string' ? ''
-                        : (item.consequence || '');
-                    const importanceLabel = typeof item === 'object' && item.importance
-                        ? ' [' + item.importance + ']' : '';
+                    // Medium tier returns strings; High tier returns
+                    // { description, ukLawNote } objects
+                    const desc = typeof item === 'string' ? item : (item.description || '');
+                    const lawNote = typeof item === 'object' && item ? (item.ukLawNote || '') : '';
 
                     y = chk(y, 12);
                     doc.setFillColor(...C.amber);
@@ -2988,11 +2985,11 @@ Rules:
                     doc.setFontSize(9);
                     doc.setFont(undefined, 'bold');
                     doc.setTextColor(...C.navy);
-                    y = writePara(clauseName + importanceLabel, M + 7, y, CW - 7, 5.5);
-                    if (clauseDetail) {
+                    y = writePara(desc, M + 7, y, CW - 7, 5.5);
+                    if (lawNote) {
                         doc.setFont(undefined, 'normal');
                         doc.setTextColor(...C.slate);
-                        y = writePara(clauseDetail, M + 7, y + 1, CW - 7, 5.2);
+                        y = writePara('UK law fallback: ' + lawNote, M + 7, y + 1, CW - 7, 5.2);
                     }
                     y += 3;
                 }
@@ -3022,28 +3019,37 @@ Rules:
                 y = sectionHead('Negotiation Leverage Points', y);
                 for (const pt of analysisResults.negotiationPoints) {
                     y = chk(y, 22);
-                    // Priority badge
-                    if (pt.priority) {
-                        doc.setFontSize(7.5);
-                        doc.setFont(undefined, 'bold');
-                        doc.setTextColor(...C.amber);
-                        doc.text(String(pt.priority).toUpperCase(), M + 3, y);
-                        y += 6;
-                    }
                     doc.setFontSize(9.5);
                     doc.setFont(undefined, 'bold');
                     doc.setTextColor(...C.navy);
                     y = writePara(String(pt.point || ''), M + 3, y, CW - 3, 5.5);
-                    const detail = pt.leverage || pt.suggestedPosition || '';
-                    if (detail) {
+                    if (pt.leverage) {
                         y = chk(y, 8);
                         doc.setFontSize(8.5);
                         doc.setFont(undefined, 'normal');
                         doc.setTextColor(...C.slate);
-                        y = writePara(detail, M + 3, y + 2, CW - 3, 5);
+                        y = writePara(pt.leverage, M + 3, y + 2, CW - 3, 5);
+                    }
+                    if (pt.marketStandard) {
+                        y = chk(y, 8);
+                        doc.setFontSize(8);
+                        doc.setFont(undefined, 'italic');
+                        doc.setTextColor(...C.slateL);
+                        y = writePara('Market standard: ' + pt.marketStandard, M + 3, y + 1, CW - 3, 4.8);
+                        doc.setFont(undefined, 'normal');
                     }
                     y = divider(y + 3);
                 }
+            }
+
+            // ── Legal Escalation Advice (High Touch) ───────────────────────────────
+            if (analysisResults.legalEscalationAdvice) {
+                y = sectionHead('Legal Escalation Advice', y);
+                doc.setFontSize(9.5);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(...C.slate);
+                y = writePara(analysisResults.legalEscalationAdvice, M, y, CW);
+                y += 4;
             }
 
             footer();

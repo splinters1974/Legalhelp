@@ -1919,6 +1919,7 @@
         // ─── Demo Mode ────────────────────────────────────────────────────────────
         const DEMO_RESULT = {
             tier: 'medium',
+            jurisdiction: 'England and Wales — Clause 26.1: This agreement shall be governed by and construed in accordance with English law.',
             fileName: 'Demo — Energy Services Agreement (sample)',
             date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
             overallRisk: 'High',
@@ -1955,6 +1956,11 @@
                     description: 'Clause 18.2 assigns all IP created during the contract to the Client, including design methodologies, software configurations, and operational data. No licence-back to Ameresco is provided.',
                     amerescoImplication: 'Ameresco\'s proprietary monitoring platform and optimisation algorithms could be captured by this clause. Replace with a licence to the Client for project-specific deliverables, retaining ownership of underlying tools and methodologies.'
                 }
+            ],
+            statutoryFlags: [
+                'Payment terms of 60 days conflict with market standard of 30 days. Under the Late Payment of Commercial Debts (Interest) Act 1998, Ameresco is entitled to claim statutory interest at 8% over Bank of England base rate on overdue invoices regardless — but this clause attempts to normalise late payment.',
+                'No adjudication clause is included. If this is a construction contract, the Housing Grants, Construction and Regeneration Act 1996 gives Ameresco a statutory right to adjudication regardless of the contract wording.',
+                'The IP assignment in Clause 18.2 is unusually broad and may capture Ameresco\'s proprietary software tools. The Contracts (Rights of Third Parties) Act 1999 is not excluded — consider whether this creates unintended third-party rights.'
             ],
             clauseBreakdown: [
                 {
@@ -2021,7 +2027,8 @@
                     priority: 'Should Have',
                     suggestedPosition: 'Attach IPMVP Option B as Schedule 5. Baselines fixed at contract execution. Adjustments permitted for changes in occupancy >10% or material operational changes outside Ameresco\'s control.'
                 }
-            ]
+            ],
+            legalEscalationAdvice: 'This contract should NOT be signed without legal review. Three issues require attention before signature: (1) Clause 14 — the liability cap structure is below market standard and the narrow consequential loss exclusion could expose Ameresco to claims well above the cap; (2) Clause 22 — the 14-day termination for convenience is commercially unacceptable on a long-term energy project and needs to be extended to at least 90 days with a break fee mechanism; (3) Clause 18 — the IP assignment is overbroad and risks capturing Ameresco\'s proprietary monitoring platform. Instruct commercial legal to review and redline these three clauses before returning to the counterparty. Target turnaround: 5 working days.'
         };
 
         function runDemo() {

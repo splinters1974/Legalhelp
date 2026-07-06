@@ -505,6 +505,20 @@
             color: var(--amber-accent);
         }
 
+        /* Jurisdiction selector */
+        .jurisdiction-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            border-radius: 20px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+            color: var(--slate-primary);
+            font-weight: 500;
+        }
+
         /* Jurisdiction Selector */
         .jurisdiction-section {
             background: var(--white);
@@ -560,45 +574,38 @@
             margin-left: auto;
         }
 
-        /* Statutory flags section (Light Touch) */
+        /* Statutory flags section */
         .statutory-flags {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
+            background: rgba(15, 23, 42, 0.04);
+            border: 1px solid rgba(15, 23, 42, 0.15);
             border-radius: 8px;
             padding: 1rem 1.25rem;
-            margin-top: 0.5rem;
+            margin-bottom: 1.5rem;
         }
-
         .statutory-flags h4 {
-            font-size: 0.8rem;
-            font-weight: 700;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: #92400e;
+            color: var(--slate-light);
             margin-bottom: 0.6rem;
         }
-
-        .statutory-flags ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+        .statutory-flag-item {
             display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
+            gap: 0.5rem;
+            align-items: flex-start;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            font-size: 0.9rem;
+            color: var(--slate-primary);
+            line-height: 1.5;
         }
-
-        .statutory-flags li {
-            font-size: 0.875rem;
-            color: #78350f;
-            padding-left: 1.1rem;
-            position: relative;
-        }
-
-        .statutory-flags li::before {
-            content: "⚖";
-            position: absolute;
-            left: 0;
-            font-size: 0.75rem;
+        .statutory-flag-item:last-child { border-bottom: none; }
+        .statutory-flag-item::before {
+            content: '⚖';
+            flex-shrink: 0;
+            color: var(--navy-primary);
+            font-size: 0.85rem;
+            margin-top: 0.05rem;
         }
 
         /* Statutory note in clause breakdown */
@@ -669,6 +676,28 @@
             font-size: 0.95rem;
             color: var(--navy-primary);
             line-height: 1.7;
+        }
+
+        /* Legal escalation block */
+        .legal-escalation {
+            background: linear-gradient(135deg, rgba(15,23,42,0.06) 0%, rgba(30,41,59,0.04) 100%);
+            border: 2px solid var(--navy-primary);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .legal-escalation h3 {
+            color: var(--navy-primary);
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .legal-escalation p {
+            color: var(--slate-primary);
+            font-size: 0.95rem;
+            line-height: 1.65;
         }
 
         /* Q&A Section */
@@ -1460,14 +1489,20 @@
         </section>
 
         <!-- Jurisdiction Selector -->
-        <section class="jurisdiction-section">
-            <span class="jurisdiction-label">Governing Law</span>
-            <div class="jurisdiction-btns">
-                <button class="jur-btn active" id="jur-england" onclick="selectJurisdiction('england-wales')">England &amp; Wales</button>
-                <button class="jur-btn" id="jur-scotland" onclick="selectJurisdiction('scotland')">Scotland</button>
-                <button class="jur-btn" id="jur-ni" onclick="selectJurisdiction('northern-ireland')">Northern Ireland</button>
+        <section class="card" style="margin-bottom:1.5rem;">
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                <label for="jurisdictionSelect" style="font-weight:600;color:var(--navy-primary);font-size:0.95rem;white-space:nowrap;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:0.35rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/></svg>
+                    Governing Law Jurisdiction
+                </label>
+                <select id="jurisdictionSelect" onchange="selectedJurisdiction=this.value"
+                    style="padding:0.5rem 1rem;border:2px solid var(--gray-200);border-radius:8px;font-size:0.95rem;color:var(--navy-primary);background:var(--white);cursor:pointer;min-width:220px;">
+                    <option value="england-wales">England &amp; Wales</option>
+                    <option value="scotland">Scotland</option>
+                    <option value="northern-ireland">Northern Ireland</option>
+                </select>
+                <span style="font-size:0.8rem;color:var(--slate-light);">Select the governing law of the contract before analysing</span>
             </div>
-            <span class="jur-note">Scottish and Northern Irish law have specific variations — select to apply jurisdiction-appropriate analysis.</span>
         </section>
 
         <!-- Analyse Button -->
@@ -2102,7 +2137,7 @@
 
                 // ── Step 5: Send to Claude ──────────────────────────────────────
                 showLoading('Sending to Claude...', 'AI analysis in progress — this takes 30–60 seconds');
-                const rawResponse = await callClaudeAPI(contractText, selectedTier);
+                const rawResponse = await callClaudeAPI(contractText, selectedTier, selectedJurisdiction);
 
                 // ── Step 6: Parse structured response ─────────────────────────────
                 showLoading('Processing results...', 'Almost done');
@@ -2112,7 +2147,6 @@
                 analysisResults = {
                     ...parsed,
                     tier: selectedTier,
-                    jurisdiction: selectedJurisdiction,
                     fileName: currentFile.name,
                     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
                 };
@@ -2134,168 +2168,176 @@
         // ─── Claude API ───────────────────────────────────────────────────────────
 
         // System prompt — establishes persona for all tiers
-        const SYSTEM_PROMPT = `You are a senior commercial adviser helping Ameresco, an energy and infrastructure company that works across public and private sector projects in the United Kingdom. Ameresco's contracts include JCT construction contracts, PPAs (Power Purchase Agreements), energy supply agreements, NDAs, framework agreements, service contracts, and subcontractor agreements.
+        const SYSTEM_PROMPT = `You are a senior commercial adviser helping Ameresco, an energy and infrastructure company that works across public and private sector projects in the UK. Ameresco's contracts include JCT construction contracts, PPAs (Power Purchase Agreements), energy supply agreements, NDAs, framework agreements, service contracts, and subcontractor agreements.
 
-Your role is to review contracts under UK law and explain risks in plain English to non-lawyers — typically sales and commercial managers who need to understand what they are signing without legal training. Write as a knowledgeable and direct commercial colleague, not as a lawyer. Explain what clauses mean in practice for Ameresco, not just what they say. If you must use a legal term, explain it immediately in plain English.
+Your role is to review contracts and explain risks in plain English to non-lawyers — typically sales and commercial managers who need to understand what they are signing without legal training. Write as a knowledgeable and direct commercial colleague, not as a lawyer. Explain what clauses mean in practice for Ameresco, not just what they say. If you must use a legal term, explain it immediately in plain English.
 
-You are familiar with the key UK statutes relevant to commercial contracts. When any of the following apply to the contract under review, name the act and explain plainly what it means for that specific clause or risk:
-- Late Payment of Commercial Debts (Interest) Act 1998 — statutory right to charge interest on overdue invoices at 8% above base rate; cannot generally be excluded in B2B contracts
-- Housing Grants, Construction and Regeneration Act 1996 (Construction Act) — applies to construction contracts; gives parties statutory rights to interim payments, payment notices, and adjudication; key protections cannot be excluded
-- Unfair Contract Terms Act 1977 (UCTA) — controls exclusion and limitation clauses in B2B contracts; terms must satisfy a reasonableness test; cannot exclude liability for negligence causing death or personal injury
-- Limitation Act 1980 (England & Wales) — claims for breach of contract must generally be brought within 6 years of the breach
-- Contracts (Rights of Third Parties) Act 1999 — third parties named or intended to benefit can enforce contract terms unless excluded; often excluded by a boilerplate clause
-- Supply of Goods and Services Act 1982 — implies terms that services will be carried out with reasonable care and skill, within a reasonable time, and at a reasonable charge if no price is fixed
-- Misrepresentation Act 1967 — remedies (rescission and/or damages) for pre-contract statements that induced the other party to sign
-- Consumer Rights Act 2015 — applies where one party is a consumer; rarely applies to Ameresco's B2B contracts but flag if relevant
+You must apply UK law throughout your analysis. Key statutes to be aware of and cite where relevant:
+- Late Payment of Commercial Debts (Interest) Act 1998: entitles Ameresco to claim 8% over Bank of England base rate on overdue invoices; a 30-day payment period applies automatically to public authority contracts
+- Housing Grants, Construction and Regeneration Act 1996 (the Construction Act): gives parties to construction contracts the right to adjudication, requires payment notices and pay less notices, and prohibits pay-when-paid clauses
+- Unfair Contract Terms Act 1977 (UCTA): exclusion and limitation clauses in B2B contracts must satisfy a reasonableness test to be enforceable
+- Limitation Act 1980 (England & Wales) / Prescription and Limitation (Scotland) Act 1973: contract claims must be brought within 6 years in England & Wales, or 5 years in Scotland
+- Supply of Goods and Services Act 1982: implies terms of reasonable care, skill and time into service contracts
+- Transfer of Undertakings (Protection of Employment) Regulations 2006 (TUPE): relevant where a service contract involves staff who may transfer
+- UK GDPR / Data Protection Act 2018: a Data Processing Agreement is required where personal data is processed; flag its absence
+- Bribery Act 2010 and Modern Slavery Act 2015: standard compliance clauses should be present in supply chain and subcontractor contracts
+- Contracts (Rights of Third Parties) Act 1999: third parties can enforce contract terms in their favour unless the right is expressly excluded
 
-When the contract is governed by Scots law, note these key differences:
-- Prescription and Limitation (Scotland) Act 1973 — 5-year prescriptive period for most contract claims (not 6 years); this is a hard cut-off (prescription), not merely a procedural bar
-- Scottish Scheme for Construction Contracts applies in place of the England & Wales Scheme under the Construction Act
-- Jus quaesitum tertio — Scotland's equivalent of third-party rights; narrower than the 1999 Act
-- Contract (Scotland) Act 1997 — written terms prevail; no equivalent of the English parol evidence rule in the same form
-
-When the contract is governed by Northern Ireland law, note:
-- Limitation (Northern Ireland) Order 1989 — 6-year limitation period, broadly similar to England & Wales
-- Construction Contracts (Northern Ireland) Order 1997 — equivalent of the Construction Act for NI; same adjudication and payment rights apply
-- Broadly follows English law principles in most commercial contract areas
+When citing a statute, always explain what it means in practice for Ameresco — do not just name it.
 
 You will return your analysis as a single JSON object matching the schema provided. Return ONLY the raw JSON — no markdown, no code fences, no commentary before or after. Every string field must be plain text (no markdown formatting inside JSON values).`;
 
-        function buildPrompt(tier) {
-            const jurLabel = {
-                'england-wales': 'England & Wales',
+        function buildPrompt(tier, jurisdiction) {
+            const jLabel = {
+                'england-wales': 'England and Wales',
                 'scotland': 'Scotland',
                 'northern-ireland': 'Northern Ireland'
-            }[selectedJurisdiction] || 'England & Wales';
+            }[jurisdiction] || 'England and Wales';
 
-            const jurNote = selectedJurisdiction === 'scotland'
-                ? 'This contract is governed by Scots law. Apply Scottish legal variations throughout (5-year prescriptive period, Scottish Scheme for construction contracts, jus quaesitum tertio for third-party rights, etc.).'
-                : selectedJurisdiction === 'northern-ireland'
-                ? 'This contract is governed by Northern Ireland law. Apply NI-specific instruments throughout (Limitation (NI) Order 1989, Construction Contracts (NI) Order 1997, etc.).'
-                : 'This contract is governed by the law of England & Wales.';
+            const scottishAddendum = jurisdiction === 'scotland' ? `
+
+Scottish Law Note: This contract is governed by Scots law. Apply the following Scottish-specific rules:
+- The limitation period for contract claims is 5 years under the Prescription and Limitation (Scotland) Act 1973 (not 6 years as in England & Wales) — flag if the contract states a longer period that may be unenforceable
+- Construction contracts in Scotland are subject to the Scheme for Construction Contracts (Scotland) Regulations 1998
+- Penalty clauses are generally more enforceable in Scotland than in England & Wales — note this if the contract contains a liquidated damages or penalty clause
+- Property security in Scotland uses standard securities (not mortgages) under the Conveyancing and Feudal Reform (Scotland) Act 1970
+- The Requirements of Writing (Scotland) Act 1995 requires certain obligations (e.g. relating to land) to be in writing and signed to be enforceable
+- There is no doctrine of consideration in Scots contract law — gratuitous obligations can be binding
+- The governing courts are the Sheriff Court and Court of Session, not the English County Court or High Court` : '';
+
+            const niAddendum = jurisdiction === 'northern-ireland' ? `
+
+Northern Ireland Note: This contract is governed by Northern Ireland law. NI broadly follows English common law for commercial contracts, and most key UK statutes (Late Payment Act, Construction Act, UCTA, TUPE, UK GDPR) apply. Note any NI-specific regulatory or planning requirements if apparent from the contract context. Dispute resolution will be through NI courts (Magistrates Court, County Court, High Court of Justice in Northern Ireland).` : '';
+
+            const jurisdictionNote = scottishAddendum + niAddendum;
 
             const tierInstructions = {
-                light: `${jurNote}
-
-Analyse the contract below and return a JSON object with this exact structure:
+                light: `Analyse the contract below under the law of ${jLabel} and return a JSON object with this exact structure:
 
 {
+  "jurisdiction": "Identified governing law — quote the governing law clause if present, otherwise state 'Not specified — assumed ${jLabel}'",
   "overallRisk": "High" | "Medium" | "Low",
   "overallJustification": "One clear sentence explaining this rating",
-  "jurisdiction": "${jurLabel}",
-  "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture. Write for a sales manager who has 5 minutes before a call.",
+  "executiveSummary": "2-3 paragraphs in plain English. State what type of contract this is, who the parties are, the key commercial terms (duration, value, obligations), the governing law, and the headline risk picture. Note immediately if the governing law is NOT UK law — this requires urgent legal review. Write for a sales manager who has 5 minutes before a call.",
   "topRisks": [
     {
       "title": "Short descriptive title (max 8 words)",
       "level": "High" | "Medium" | "Low",
-      "description": "2–3 sentences explaining what this risk is in plain English — not legal language",
-      "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco — financial exposure, operational risk, reputational concern, etc."
+      "description": "2-3 sentences explaining what this risk is in plain English. Where a UK statute is relevant, name it and explain what it means — e.g. 'Under the Late Payment of Commercial Debts Act 1998, Ameresco is entitled to charge 8% over base rate on overdue invoices. This clause removes that right.'",
+      "amerescoImplication": "1-2 sentences on what this means specifically for Ameresco — financial exposure, operational risk, or reputational concern."
     }
   ],
   "statutoryFlags": [
-    "Name of the UK act + one sentence in plain English explaining exactly how it applies to this contract and what it means for Ameresco. Only include acts that are genuinely relevant."
+    "Brief plain-English flag where a contract term appears to conflict with or waive a UK statutory right — e.g. 'Payment terms of 90 days conflict with the 30-day default under the Late Payment Act for public authority contracts.' Include up to 3 flags; omit this array if no statutory issues are identified."
   ]
 }
 
 Rules:
-- topRisks must contain exactly 5 items, ordered High → Low
-- overallRisk reflects the single highest risk level, or Medium if risks are mixed
-- statutoryFlags: include only statutes that genuinely apply; 1–4 items is typical; if no UK statute is directly relevant, return an empty array
+- topRisks must contain exactly 5 items, ordered High to Low
+- overallRisk reflects the highest risk level present, or Medium if risks are mixed
+- If governing law is not UK law (England/Wales/Scotland/NI), set overallRisk to High and explain in executiveSummary that legal review is required before signing
+- statutoryFlags: include up to 3 items; return empty array [] if none apply
 - Do not include fields not listed above
-- Return ONLY the JSON object`,
+- Return ONLY the JSON object${jurisdictionNote}`,
 
-                medium: `${jurNote}
-
-Analyse the contract below and return a JSON object with this exact structure:
+                medium: `Analyse the contract below under the law of ${jLabel} and return a JSON object with this exact structure:
 
 {
+  "jurisdiction": "Identified governing law — quote the governing law clause if present, otherwise state 'Not specified — assumed ${jLabel}'",
   "overallRisk": "High" | "Medium" | "Low",
   "overallJustification": "One clear sentence explaining this rating",
-  "jurisdiction": "${jurLabel}",
-  "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture.",
+  "executiveSummary": "2-3 paragraphs in plain English. State what type of contract this is, who the parties are, the key commercial terms (duration, value, obligations), governing law, and headline risk picture. Flag immediately if governing law is not UK law.",
   "topRisks": [
     {
       "title": "Short descriptive title (max 8 words)",
       "level": "High" | "Medium" | "Low",
-      "description": "2–3 sentences explaining what this risk is in plain English",
-      "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco"
+      "description": "2-3 sentences in plain English. Where a UK statute is relevant, name it and explain what it means in practice.",
+      "amerescoImplication": "1-2 sentences on what this means specifically for Ameresco."
     }
+  ],
+  "statutoryFlags": [
+    "Plain-English flag where a contract term conflicts with or waives a UK statutory right. Up to 3 items; empty array if none."
   ],
   "clauseBreakdown": [
     {
-      "clauseRef": "Clause number or heading (e.g. 'Clause 8.2' or 'Termination')",
+      "clauseRef": "Clause number or heading (e.g. 'Clause 8.2 — Payment' or 'Termination')",
       "keyText": "The most relevant wording from the clause — quote directly, max 50 words",
       "meaning": "What this clause means in practice — plain English, no jargon",
       "risk": "The specific risk or concern this creates for Ameresco",
-      "statutoryNote": "If a UK statute is directly relevant to this clause, name it and explain in one plain-English sentence how it applies. Omit this field if no statute applies."
+      "statutoryNote": "Only include this field if the clause engages a specific UK statute — name the act and explain the practical implication. Omit the field entirely if not applicable."
     }
   ],
   "missingClauses": [
-    "Plain English description of a clause that is absent but should be present — explain what protection it would give Ameresco and, where relevant, whether UK law provides any default protection in its absence"
+    "Plain English description of a protection that is absent but should be present — explain what risk this creates for Ameresco and, where relevant, what UK law says about it. E.g. 'No adjudication clause — if this is a construction contract, the Housing Grants Act 1996 gives Ameresco a statutory right to adjudication regardless, but the absence of an express clause may cause disputes about procedure.'"
   ]
 }
 
 Rules:
-- topRisks must contain exactly 5 items, ordered High → Low
-- clauseBreakdown must contain 6–10 of the most commercially significant clauses
-- Include both problematic clauses AND any clauses that are unusually favourable to Ameresco
-- missingClauses: list 2–5 standard protections that are absent; if none are missing, return an empty array
-- Do not include fields not listed above
-- Return ONLY the JSON object`,
+- topRisks must contain exactly 5 items, ordered High to Low
+- clauseBreakdown must contain 6-10 of the most commercially significant clauses
+- Include both problematic clauses AND any unusually favourable clauses
+- missingClauses: 3-5 items covering absent protections; return empty array [] if none
+- statutoryNote in clauseBreakdown: only include when a specific UK act is engaged; omit field otherwise
+- If governing law is not UK law, flag in executiveSummary and set overallRisk High
+- Return ONLY the JSON object${jurisdictionNote}`,
 
-                high: `${jurNote}
-
-Analyse the contract below and return a JSON object with this exact structure:
+                high: `Analyse the contract below under the law of ${jLabel} and return a JSON object with this exact structure:
 
 {
+  "jurisdiction": "Identified governing law — quote the governing law clause if present, otherwise state 'Not specified — assumed ${jLabel}'",
   "overallRisk": "High" | "Medium" | "Low",
   "overallJustification": "One clear sentence explaining this rating",
-  "jurisdiction": "${jurLabel}",
-  "executiveSummary": "2–3 paragraphs in plain English. Summarise what the contract is, who the parties are, the key commercial terms (duration, value, obligations), and the headline risk picture.",
+  "executiveSummary": "3 paragraphs in plain English. (1) What this contract is, parties, key commercial terms, duration, value. (2) Headline legal risks and which UK statutes are engaged. (3) Overall recommendation — sign as-is, negotiate first, or escalate to legal.",
   "topRisks": [
     {
       "title": "Short descriptive title (max 8 words)",
       "level": "High" | "Medium" | "Low",
-      "description": "2–3 sentences explaining what this risk is in plain English",
-      "amerescoImplication": "1–2 sentences on what this means specifically for Ameresco"
+      "description": "2-3 sentences in plain English. Name and explain any relevant UK statute.",
+      "amerescoImplication": "1-2 sentences on financial, operational or reputational exposure for Ameresco."
     }
+  ],
+  "statutoryFlags": [
+    "Plain-English flag where a contract term conflicts with or waives a UK statutory right. Up to 3 items; empty array if none."
   ],
   "clauseBreakdown": [
     {
       "clauseRef": "Clause number or heading",
       "keyText": "Relevant wording — quote directly, max 50 words",
       "meaning": "What this clause means in practice",
-      "risk": "The specific risk or concern for Ameresco",
-      "statutoryNote": "If a UK statute is directly relevant to this clause, name it and explain in one plain-English sentence how it applies. Omit this field if no statute applies."
+      "risk": "The specific risk for Ameresco",
+      "statutoryNote": "Only include if a specific UK act is engaged — name it and explain the practical implication."
     }
   ],
   "missingClauses": [
     {
-      "description": "What clause is missing, why it matters, and what risk its absence creates for Ameresco",
-      "ukLawNote": "Whether UK law provides any default protection in the absence of this clause, and which statute if applicable — or state that there is no statutory fallback"
+      "clause": "Name of the missing clause or protection",
+      "importance": "High" | "Medium" | "Low",
+      "consequence": "What risk or exposure the absence creates for Ameresco",
+      "ukLawNote": "The UK statutory or common law context — e.g. 'The Late Payment of Commercial Debts Act 1998 entitles Ameresco to statutory interest regardless, but without an express clause the rate defaults to 8% over base rather than any commercial rate Ameresco might have negotiated.'"
     }
   ],
   "recommendedActions": [
-    "Specific, actionable step — e.g. a question to raise with legal, a clause to request, or a condition to clarify before signing"
+    "Specific, actionable step — e.g. a clause to request, a question for legal, or a condition to clarify before signing. Where the contract value or risk level warrants it, state explicitly: 'This should be reviewed by Ameresco legal before signing.'"
   ],
   "negotiationPoints": [
     {
       "point": "The clause or term Ameresco should push back on",
-      "leverage": "Why Ameresco has grounds to negotiate here and what a better position looks like",
-      "marketStandard": "What market standard looks like for this clause in comparable UK contracts — reference JCT, NEC, bespoke energy sector norms, or standard industry practice as appropriate"
+      "leverage": "Why Ameresco has grounds to negotiate here",
+      "marketStandard": "What market standard or UK law says the normal position should be — e.g. 'Standard English law JCT contracts cap liability at contract value with a mutual exclusion of consequential loss. The current drafting is significantly below market standard.'"
     }
   ],
-  "legalEscalationAdvice": "A direct paragraph telling the reader whether this contract should be reviewed by a qualified solicitor before signing. If yes, state specifically what to flag and why. If the contract is relatively standard and low-risk, say so clearly. Do not hedge — give a plain view."
+  "legalEscalationAdvice": "A single paragraph addressed to the reader telling them plainly: (1) whether this contract should be signed without legal review, reviewed by legal before signing, or should not be signed until legal has negotiated changes; (2) the 2-3 specific clauses or issues legal should focus on; and (3) any time-sensitive actions. Write this for a sales director who needs a clear steer, not a lawyer who needs nuance."
 }
 
 Rules:
-- topRisks must contain exactly 5 items, ordered High → Low
-- clauseBreakdown must contain 6–10 clauses
-- missingClauses: list 3–6 absent standard protections; if none are missing, return an empty array
-- recommendedActions: 4–8 specific, actionable items
-- negotiationPoints: 3–6 items, prioritised by importance to Ameresco
-- Do not include fields not listed above
-- Return ONLY the JSON object`
+- topRisks must contain exactly 5 items, ordered High to Low
+- clauseBreakdown: 6-10 clauses covering the most commercially significant provisions
+- missingClauses: 3-6 items as objects; return empty array [] if none
+- recommendedActions: 4-8 specific items
+- negotiationPoints: 3-6 items, prioritised by importance to Ameresco
+- legalEscalationAdvice: always include — this is mandatory
+- If governing law is not UK law, legalEscalationAdvice must state clearly that legal review is required before signing
+- Return ONLY the JSON object${jurisdictionNote}`
             };
 
             return tierInstructions[tier];
@@ -2304,14 +2346,14 @@ Rules:
         // ─── Call Claude API ───────────────────────────────────────────────────────
         const MAX_TOKENS = { light: 2048, medium: 5000, high: 8192 };
 
-        async function callClaudeAPI(text, tier) {
+        async function callClaudeAPI(text, tier, jurisdiction) {
             const body = {
                 model: 'claude-sonnet-4-5',
                 max_tokens: MAX_TOKENS[tier],
                 system: SYSTEM_PROMPT,
                 messages: [{
                     role: 'user',
-                    content: buildPrompt(tier) + '\n\n---\n\nCONTRACT TEXT:\n\n' + text
+                    content: buildPrompt(tier, jurisdiction) + '\n\n---\n\nCONTRACT TEXT:\n\n' + text
                 }]
             };
 
@@ -2422,6 +2464,7 @@ Rules:
             parsed.recommendedActions = parsed.recommendedActions || [];
             parsed.negotiationPoints = parsed.negotiationPoints || [];
             parsed.statutoryFlags = parsed.statutoryFlags || [];
+            parsed.jurisdiction = parsed.jurisdiction || '';
             parsed.legalEscalationAdvice = parsed.legalEscalationAdvice || '';
 
             // Normalise risk levels to title-case so CSS classes work reliably
@@ -2457,11 +2500,15 @@ Rules:
             const justEl = document.getElementById('scoreJustification');
             justEl.textContent = results.overallJustification || '';
 
-            // 2. Date + tier label
-            const jurDisplay = { 'england-wales': 'England & Wales', 'scotland': 'Scotland', 'northern-ireland': 'Northern Ireland' };
-            const jurStr = jurDisplay[results.jurisdiction] || results.jurisdiction || 'England & Wales';
-            document.getElementById('analysisDate').textContent =
-                `Analysed on ${results.date} \u00b7 ${tierLabel(results.tier)} \u00b7 ${jurStr}`;
+            // 2. Date + tier label + jurisdiction badge
+            const jDisplay = results.jurisdiction
+                ? results.jurisdiction.replace('Not specified \u2014 assumed ', 'Assumed: ')
+                : '';
+            const jBadge = jDisplay
+                ? ` <span class="jurisdiction-badge">\u2696 ${escHtml(jDisplay)}</span>`
+                : '';
+            document.getElementById('analysisDate').innerHTML =
+                `Analysed on ${escHtml(results.date)} \u00b7 ${escHtml(tierLabel(results.tier))}${jBadge}`;
 
             // 3. Executive summary — split on double newlines → multiple <p> tags
             document.getElementById('executiveSummary').innerHTML =
@@ -2471,11 +2518,11 @@ Rules:
                     .map(p => `<p>${escHtml(p.trim()).replace(/\n/g, '<br>')}</p>`)
                     .join('');
 
-            // 4. Risk cards + statutory flags
+            // 4. Risk cards
             const hasRisks = results.topRisks && results.topRisks.length > 0;
             document.getElementById('riskGridHeading').style.display = hasRisks ? '' : 'none';
             document.getElementById('riskGrid').innerHTML = hasRisks
-                ? renderRiskCards(results.topRisks) + renderStatutoryFlags(results.statutoryFlags)
+                ? renderRiskCards(results.topRisks)
                 : '';
 
             // 5. Detailed analysis sections (tier-dependent, all skip if empty)
@@ -2525,11 +2572,12 @@ Rules:
             }
 
             let html = '';
+            html += renderStatutoryFlags(results.statutoryFlags);
             html += renderClauseBreakdown(results.clauseBreakdown);
             html += renderMissingClauses(results.missingClauses, results.tier);
             html += renderRecommendations(results.recommendedActions);
             html += renderNegotiationPoints(results.negotiationPoints);
-            html += renderLegalEscalationAdvice(results.legalEscalationAdvice);
+            html += renderLegalEscalation(results.legalEscalationAdvice);
             return html;
         }
 
@@ -2559,18 +2607,27 @@ Rules:
             </div>`;
         }
 
-        // ─── Missing Clauses (Medium: strings; High: objects with ukLawNote) ────────
+        // ─── Missing Clauses (Medium: strings; High: objects with clause/consequence/ukLawNote) ────────
         function renderMissingClauses(missing, tier) {
             if (!missing || missing.length === 0) return '';
             let items;
-            if (tier === 'high' && missing.length > 0 && typeof missing[0] === 'object') {
-                items = missing.map(m => `
+            if (missing.length > 0 && typeof missing[0] === 'object') {
+                items = missing.map(m => {
+                    // Support both old {description} format and new {clause, consequence, ukLawNote} format
+                    const mainText = m.clause
+                        ? (m.importance ? `[${m.importance}] ${m.clause}` : m.clause)
+                        : (m.description || JSON.stringify(m));
+                    const detail = m.consequence || '';
+                    const lawNote = m.ukLawNote || '';
+                    return `
                     <li class="missing-item">
-                        <div class="missing-item-desc">${escHtml(m.description)}</div>
-                        ${m.ukLawNote ? `<div class="missing-item-law"><strong>UK law fallback:</strong> ${escHtml(m.ukLawNote)}</div>` : ''}
-                    </li>`).join('');
+                        <div class="missing-item-desc">${escHtml(mainText)}</div>
+                        ${detail ? `<div class="missing-item-desc" style="font-weight:normal;margin-top:0.25rem;">${escHtml(detail)}</div>` : ''}
+                        ${lawNote ? `<div class="missing-item-law"><strong>UK law fallback:</strong> ${escHtml(lawNote)}</div>` : ''}
+                    </li>`;
+                }).join('');
             } else {
-                items = missing.map(m => `<li>${escHtml(typeof m === 'object' ? m.description || JSON.stringify(m) : m)}</li>`).join('');
+                items = missing.map(m => `<li>${escHtml(typeof m === 'object' ? (m.description || JSON.stringify(m)) : m)}</li>`).join('');
             }
             return `
             <div class="analysis-section">
@@ -2608,24 +2665,29 @@ Rules:
             </div>`;
         }
 
-        // ─── Statutory Flags (Light Touch) ───────────────────────────────────────
+        // ─── Statutory Flags ──────────────────────────────────────────────────────
         function renderStatutoryFlags(flags) {
             if (!flags || flags.length === 0) return '';
-            const items = flags.map(f => `<li>${escHtml(f)}</li>`).join('');
+            const items = flags.map(f =>
+                `<div class="statutory-flag-item">${escHtml(String(f))}</div>`
+            ).join('');
             return `
             <div class="statutory-flags">
                 <h4>UK Statutory Considerations</h4>
-                <ul>${items}</ul>
+                ${items}
             </div>`;
         }
 
-        // ─── Legal Escalation Advice (High only) ─────────────────────────────────
-        function renderLegalEscalationAdvice(advice) {
+        // ─── Legal Escalation Advice ──────────────────────────────────────────────
+        function renderLegalEscalation(advice) {
             if (!advice) return '';
             return `
-            <div class="analysis-section escalation-section">
-                <h3>Legal Escalation Advice</h3>
-                <div class="escalation-body">${escHtml(advice)}</div>
+            <div class="legal-escalation">
+                <h3>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    Legal Escalation Advice
+                </h3>
+                <p>${escHtml(advice)}</p>
             </div>`;
         }
 

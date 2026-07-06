@@ -1,6 +1,9 @@
 [build]
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+
 # Security headers applied to all pages
 [[headers]]
   for = "/*"
@@ -10,7 +13,7 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     # CSP allows:
-    #   - scripts from self + cdnjs (PDF.js, Mammoth, jsPDF, docx.js, FileSaver)
+    #   - scripts from self + CDNs (PDF.js, Mammoth, jsPDF, docx.js, FileSaver)
     #   - styles from self (inline styles used throughout)
-    #   - connections to Anthropic API only
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com cdn.jsdelivr.net unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com; font-src 'self'; img-src 'self' data:; object-src 'none'"
+    #   - connections to same origin only (all AI calls go via /api/claude)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com cdn.jsdelivr.net unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; img-src 'self' data:; object-src 'none'"
